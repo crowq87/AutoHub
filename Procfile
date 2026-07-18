@@ -1,0 +1,1 @@
+web: gunicorn autohub.wsgi --log-file -

@@ -1,0 +1,408 @@
+{% extends 'core/base.html' %}
+{% block title %}{% if editing %}Edit{% else %}Post{% endif %} Vehicle — AutoHub{% endblock %}
+
+{% block extra_css %}
+<style>
+.feature-toggle {
+  border: 2px solid #e9ebe5;
+  border-radius: 12px;
+  padding: 0.85rem 1rem;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  transition: all 0.18s;
+  background: #f9fafb;
+  user-select: none;
+  position: relative;
+}
+.feature-toggle:hover { border-color: #f97316; background: #fff7ed; }
+.feature-toggle.active { border-color: #2563eb; background: #dbeafe; }
+.feature-toggle.active .feature-icon-toggle { color: #2563eb; }
+.feature-toggle.active .feature-label-toggle { color: #1d4ed8; font-weight: 600; }
+.feature-icon-toggle  { font-size: 1.2rem; color: #9ca3af; flex-shrink: 0; }
+.feature-label-toggle { font-size: 0.8rem; font-weight: 500; color: #374151; flex: 1; }
+.feature-toggle input[type="checkbox"] { position: absolute; opacity: 0; width: 0; height: 0; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+  <div class="row justify-content-center">
+    <div class="col-lg-9">
+      <div class="post-card">
+        <div class="post-header">
+          <div class="post-header-icon">
+            <i class="bi bi-{% if editing %}pencil{% else %}plus-circle{% endif %}-fill"></i>
+          </div>
+          <div>
+            <h3 class="fw-800 mb-1">{% if editing %}Edit Your Listing{% else %}Post Your Vehicle{% endif %}</h3>
+            <p class="mb-0">{% if editing %}Update your vehicle details{% else %}Fill in the details to list your vehicle{% endif %}</p>
+          </div>
+        </div>
+
+        <form method="post" enctype="multipart/form-data" novalidate>
+          {% csrf_token %}
+
+          <!-- ══ SECTION 1: Listing & Basic Info ══ -->
+          <div class="form-section">
+            <h6 class="section-title"><i class="bi bi-tag-fill text-warning me-2"></i>Listing Type & Basic Info</h6>
+            <div class="row g-3">
+              <div class="col-md-4">
+                <label class="form-label fw-600">Listing Type *</label>
+                {{ form.listing_type }}
+                {% if form.listing_type.errors %}<div class="text-danger small">{{ form.listing_type.errors.0 }}</div>{% endif %}
+              </div>
+              <div class="col-md-4">
+                <label class="form-label fw-600">Condition *</label>
+                {{ form.condition }}
+                {% if form.condition.errors %}<div class="text-danger small">{{ form.condition.errors.0 }}</div>{% endif %}
+              </div>
+              <div class="col-md-4">
+                <label class="form-label fw-600">Body Type *</label>
+                {{ form.body_type }}
+                {% if form.body_type.errors %}<div class="text-danger small">{{ form.body_type.errors.0 }}</div>{% endif %}
+              </div>
+              <div class="col-md-4">
+                <label class="form-label fw-600">Brand *</label>
+                {{ form.brand }}
+                {% if form.brand.errors %}<div class="text-danger small">{{ form.brand.errors.0 }}</div>{% endif %}
+              </div>
+              <div class="col-md-4">
+                <label class="form-label fw-600">Model *</label>
+                {{ form.model }}
+                {% if form.model.errors %}<div class="text-danger small">{{ form.model.errors.0 }}</div>{% endif %}
+              </div>
+              <div class="col-md-2">
+                <label class="form-label fw-600">Year *</label>
+                {{ form.year }}
+                {% if form.year.errors %}<div class="text-danger small">{{ form.year.errors.0 }}</div>{% endif %}
+              </div>
+              <div class="col-md-2">
+                <label class="form-label fw-600">Color *</label>
+                {{ form.color }}
+                {% if form.color.errors %}<div class="text-danger small">{{ form.color.errors.0 }}</div>{% endif %}
+              </div>
+            </div>
+          </div>
+
+          <!-- ══ SECTION 2: Engine & Performance ══ -->
+          <div class="form-section">
+            <h6 class="section-title"><i class="bi bi-speedometer2 text-primary me-2"></i>Engine & Performance</h6>
+            <div class="row g-3">
+              <div class="col-md-3">
+                <label class="form-label fw-600">Fuel Type *</label>
+                {{ form.fuel_type }}
+                {% if form.fuel_type.errors %}<div class="text-danger small">{{ form.fuel_type.errors.0 }}</div>{% endif %}
+              </div>
+              <div class="col-md-3">
+                <label class="form-label fw-600">Transmission *</label>
+                {{ form.transmission }}
+                {% if form.transmission.errors %}<div class="text-danger small">{{ form.transmission.errors.0 }}</div>{% endif %}
+              </div>
+              <div class="col-md-3">
+                <label class="form-label fw-600">Drive Type</label>
+                {{ form.drive_type }}
+              </div>
+              <div class="col-md-3">
+                <label class="form-label fw-600">Engine Size</label>
+                {{ form.engine_size }}
+              </div>
+              <div class="col-md-3">
+                <label class="form-label fw-600">Horsepower (hp)</label>
+                {{ form.horsepower }}
+              </div>
+              <div class="col-md-3">
+                <label class="form-label fw-600">Mileage (km)</label>
+                {{ form.mileage }}
+              </div>
+              <div class="col-md-3">
+                <label class="form-label fw-600">No. of Seats</label>
+                {{ form.num_seats }}
+              </div>
+              <div class="col-md-3">
+                <label class="form-label fw-600">No. of Doors</label>
+                {{ form.num_doors }}
+              </div>
+            </div>
+          </div>
+
+          <!-- ══ SECTION 3: Comfort Features ══ -->
+          <div class="form-section">
+            <h6 class="section-title"><i class="bi bi-stars text-warning me-2"></i>Comfort & Interior Features</h6>
+            <div class="row g-3">
+              <div class="col-6 col-md-3">
+                <div class="feature-toggle{% if form.has_ac.value %} active{% endif %}" data-field="has_ac">
+                  <i class="bi bi-snow2 feature-icon-toggle"></i>
+                  <span class="feature-label-toggle">Air Conditioning</span>
+                  {{ form.has_ac }}
+                </div>
+              </div>
+              <div class="col-6 col-md-3">
+                <div class="feature-toggle{% if form.has_power_steering.value %} active{% endif %}" data-field="has_power_steering">
+                  <i class="bi bi-arrow-left-right feature-icon-toggle"></i>
+                  <span class="feature-label-toggle">Power Steering</span>
+                  {{ form.has_power_steering }}
+                </div>
+              </div>
+              <div class="col-6 col-md-3">
+                <div class="feature-toggle{% if form.has_power_windows.value %} active{% endif %}" data-field="has_power_windows">
+                  <i class="bi bi-window feature-icon-toggle"></i>
+                  <span class="feature-label-toggle">Power Windows</span>
+                  {{ form.has_power_windows }}
+                </div>
+              </div>
+              <div class="col-6 col-md-3">
+                <div class="feature-toggle{% if form.has_leather_seats.value %} active{% endif %}" data-field="has_leather_seats">
+                  <i class="bi bi-journal-richtext feature-icon-toggle"></i>
+                  <span class="feature-label-toggle">Leather Seats</span>
+                  {{ form.has_leather_seats }}
+                </div>
+              </div>
+              <div class="col-6 col-md-3">
+                <div class="feature-toggle{% if form.has_sunroof.value %} active{% endif %}" data-field="has_sunroof">
+                  <i class="bi bi-sun feature-icon-toggle"></i>
+                  <span class="feature-label-toggle">Sunroof</span>
+                  {{ form.has_sunroof }}
+                </div>
+              </div>
+              <div class="col-6 col-md-3">
+                <div class="feature-toggle{% if form.has_tinted.value %} active{% endif %}" data-field="has_tinted">
+                  <i class="bi bi-shadows feature-icon-toggle"></i>
+                  <span class="feature-label-toggle">Tinted Windows</span>
+                  {{ form.has_tinted }}
+                </div>
+              </div>
+              <div class="col-6 col-md-3">
+                <div class="feature-toggle{% if form.has_bluetooth.value %} active{% endif %}" data-field="has_bluetooth">
+                  <i class="bi bi-bluetooth feature-icon-toggle"></i>
+                  <span class="feature-label-toggle">Bluetooth / Audio</span>
+                  {{ form.has_bluetooth }}
+                </div>
+              </div>
+              <div class="col-6 col-md-3">
+                <div class="feature-toggle{% if form.has_spare_tire.value %} active{% endif %}" data-field="has_spare_tire">
+                  <i class="bi bi-circle feature-icon-toggle"></i>
+                  <span class="feature-label-toggle">Spare Tire</span>
+                  {{ form.has_spare_tire }}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- ══ SECTION 4: Safety & Technology ══ -->
+          <div class="form-section">
+            <h6 class="section-title"><i class="bi bi-shield-check-fill text-primary me-2"></i>Safety & Technology</h6>
+            <div class="row g-3">
+              <div class="col-6 col-md-3">
+                <div class="feature-toggle{% if form.has_abs.value %} active{% endif %}" data-field="has_abs">
+                  <i class="bi bi-hexagon-fill feature-icon-toggle"></i>
+                  <span class="feature-label-toggle">ABS Brakes</span>
+                  {{ form.has_abs }}
+                </div>
+              </div>
+              <div class="col-6 col-md-3">
+                <div class="feature-toggle{% if form.has_airbags.value %} active{% endif %}" data-field="has_airbags">
+                  <i class="bi bi-balloon-fill feature-icon-toggle"></i>
+                  <span class="feature-label-toggle">Airbags</span>
+                  {{ form.has_airbags }}
+                </div>
+              </div>
+              <div class="col-6 col-md-3">
+                <div class="feature-toggle{% if form.has_backup_camera.value %} active{% endif %}" data-field="has_backup_camera">
+                  <i class="bi bi-camera-fill feature-icon-toggle"></i>
+                  <span class="feature-label-toggle">Backup Camera</span>
+                  {{ form.has_backup_camera }}
+                </div>
+              </div>
+              <div class="col-6 col-md-3">
+                <div class="feature-toggle{% if form.has_dashcam.value %} active{% endif %}" data-field="has_dashcam">
+                  <i class="bi bi-camera-video-fill feature-icon-toggle"></i>
+                  <span class="feature-label-toggle">Dashcam</span>
+                  {{ form.has_dashcam }}
+                </div>
+              </div>
+              <div class="col-6 col-md-3">
+                <div class="feature-toggle{% if form.has_gps.value %} active{% endif %}" data-field="has_gps">
+                  <i class="bi bi-geo-alt-fill feature-icon-toggle"></i>
+                  <span class="feature-label-toggle">GPS Navigation</span>
+                  {{ form.has_gps }}
+                </div>
+              </div>
+              <div class="col-6 col-md-3">
+                <div class="feature-toggle{% if form.has_alarm.value %} active{% endif %}" data-field="has_alarm">
+                  <i class="bi bi-shield-lock-fill feature-icon-toggle"></i>
+                  <span class="feature-label-toggle">Car Alarm</span>
+                  {{ form.has_alarm }}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- ══ SECTION 5: Documents ══ -->
+          <div class="form-section">
+            <h6 class="section-title"><i class="bi bi-file-earmark-check-fill text-primary me-2"></i>Documents & Registration</h6>
+            <div class="row g-3">
+              <div class="col-6 col-md-3">
+                <div class="feature-toggle{% if form.is_registered.value %} active{% endif %}" data-field="is_registered">
+                  <i class="bi bi-card-checklist feature-icon-toggle"></i>
+                  <span class="feature-label-toggle">OR/CR Complete</span>
+                  {{ form.is_registered }}
+                </div>
+              </div>
+              <div class="col-6 col-md-3">
+                <div class="feature-toggle{% if form.has_insurance.value %} active{% endif %}" data-field="has_insurance">
+                  <i class="bi bi-patch-check-fill feature-icon-toggle"></i>
+                  <span class="feature-label-toggle">With Insurance</span>
+                  {{ form.has_insurance }}
+                </div>
+              </div>
+              <div class="col-md-4">
+                <label class="form-label fw-600">Plate Number <span class="text-muted">(optional)</span></label>
+                {{ form.plate_number }}
+              </div>
+            </div>
+          </div>
+
+          <!-- ══ SECTION 6: Pricing ══ -->
+          <div class="form-section">
+            <h6 class="section-title"><i class="bi bi-cash-coin text-warning me-2"></i>Pricing</h6>
+            <div class="row g-3">
+              <div class="col-md-5">
+                <label class="form-label fw-600">Price (₱) *</label>
+                <div class="input-group">
+                  <span class="input-group-text fw-700">₱</span>
+                  {{ form.price }}
+                </div>
+                {% if form.price.errors %}<div class="text-danger small">{{ form.price.errors.0 }}</div>{% endif %}
+              </div>
+              <div class="col-md-4">
+                <label class="form-label fw-600">Price Unit</label>
+                {{ form.price_unit }}
+                <div class="form-text">e.g. /day, /month, total, negotiable</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- ══ SECTION 7: Location ══ -->
+          <div class="form-section">
+            <h6 class="section-title"><i class="bi bi-geo-alt-fill text-danger me-2"></i>Location & Availability</h6>
+            <div class="row g-3">
+              <div class="col-12">
+                <label class="form-label fw-600">Pickup / Viewing Location *</label>
+                {{ form.pickup_location }}
+                {% if form.pickup_location.errors %}<div class="text-danger small">{{ form.pickup_location.errors.0 }}</div>{% endif %}
+              </div>
+              <div class="col-12">
+                <div class="feature-toggle{% if form.delivery_available.value %} active{% endif %}" data-field="delivery_available" style="max-width:280px;">
+                  <i class="bi bi-truck feature-icon-toggle"></i>
+                  <span class="feature-label-toggle">Delivery Available</span>
+                  {{ form.delivery_available }}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- ══ SECTION 8: Description ══ -->
+          <div class="form-section">
+            <h6 class="section-title"><i class="bi bi-file-text-fill text-secondary me-2"></i>Description</h6>
+            <label class="form-label fw-600">Vehicle Description *</label>
+            {{ form.description }}
+            {% if form.description.errors %}<div class="text-danger small">{{ form.description.errors.0 }}</div>{% endif %}
+          </div>
+
+          <!-- ══ SECTION 9: Photos ══ -->
+          <div class="form-section">
+            <h6 class="section-title"><i class="bi bi-images text-primary me-2"></i>Vehicle Photos</h6>
+            {% if editing and listing.photos.all %}
+            <div class="mb-3">
+              <p class="small text-muted fw-600">Existing photos:</p>
+              <div class="d-flex flex-wrap gap-2">
+                {% for photo in listing.photos.all %}
+                <div class="existing-photo-thumb">
+                  <img src="{{ photo.image.url }}" alt="">
+                  <a href="{% url 'delete_photo' photo.pk %}" class="delete-photo-btn" onclick="return confirm('Delete this photo?')">
+                    <i class="bi bi-x-circle-fill"></i>
+                  </a>
+                </div>
+                {% endfor %}
+              </div>
+            </div>
+            {% endif %}
+            <div class="photo-upload-area" id="photoDropZone">
+              <i class="bi bi-cloud-upload-fill display-4 text-muted"></i>
+              <p class="mb-2 fw-600">Click to upload or drag &amp; drop photos</p>
+              <p class="small text-muted">First photo will be the main image. JPG, PNG accepted. Max 10 photos.</p>
+              <input type="file" name="photos" id="photoInput" multiple accept="image/*" class="d-none">
+              <label for="photoInput" class="btn btn-outline-primary mt-2 fw-600">
+                <i class="bi bi-camera me-2"></i>Choose Photos
+              </label>
+            </div>
+            <div id="photoPreview" class="d-flex flex-wrap gap-2 mt-3"></div>
+          </div>
+
+          <!-- Submit -->
+          <div class="d-flex gap-3 mt-2">
+            <button type="submit" class="btn btn-primary btn-lg flex-fill fw-600">
+              <i class="bi bi-check-circle me-2"></i>
+              {% if editing %}Update Listing{% else %}Post Vehicle{% endif %}
+            </button>
+            <a href="{% url 'dashboard' %}" class="btn btn-outline-secondary btn-lg px-4">Cancel</a>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Photo drag & drop
+const photoInput = document.getElementById('photoInput');
+const preview    = document.getElementById('photoPreview');
+const dropZone   = document.getElementById('photoDropZone');
+
+dropZone.addEventListener('click', () => photoInput.click());
+dropZone.addEventListener('dragover',  e => { e.preventDefault(); dropZone.classList.add('dragover'); });
+dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
+dropZone.addEventListener('drop', e => {
+  e.preventDefault(); dropZone.classList.remove('dragover');
+  photoInput.files = e.dataTransfer.files;
+  showPreviews(e.dataTransfer.files);
+});
+photoInput.addEventListener('change', e => showPreviews(e.target.files));
+
+function showPreviews(files) {
+  preview.innerHTML = '';
+  Array.from(files).forEach((file, i) => {
+    const reader = new FileReader();
+    reader.onload = e => {
+      const div = document.createElement('div');
+      div.className = 'preview-img-wrap';
+      div.innerHTML = `<img src="${e.target.result}" class="preview-img">${i === 0 ? '<span class="main-badge">Main</span>' : ''}`;
+      preview.appendChild(div);
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+// Feature toggle click behaviour
+document.querySelectorAll('.feature-toggle').forEach(toggle => {
+  const checkbox = toggle.querySelector('input[type="checkbox"]');
+  if (!checkbox) return;
+
+  if (checkbox.checked) toggle.classList.add('active');
+
+  toggle.addEventListener('click', function (e) {
+    if (e.target === checkbox) return;
+    checkbox.checked = !checkbox.checked;
+    toggle.classList.toggle('active', checkbox.checked);
+  });
+
+  checkbox.addEventListener('change', function () {
+    toggle.classList.toggle('active', checkbox.checked);
+  });
+});
+</script>
+{% endblock %}

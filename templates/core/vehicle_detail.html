@@ -1,0 +1,427 @@
+{% extends 'core/base.html' %}
+{% load static %}
+{% block title %}{{ listing.year }} {{ listing.brand }} {{ listing.model }} — AutoHub{% endblock %}
+
+{% block content %}
+<div class="container py-4" style="background:var(--bg-body);">
+
+  <!-- Breadcrumb -->
+  <nav aria-label="breadcrumb" class="mb-3">
+    <ol class="breadcrumb">
+      <li class="breadcrumb-item"><a href="{% url 'dashboard' %}">Browse</a></li>
+      <li class="breadcrumb-item"><a href="{% url 'dashboard' %}?listing_type={{ listing.listing_type }}">{{ listing.get_listing_type_display }}</a></li>
+      <li class="breadcrumb-item active">{{ listing.brand }} {{ listing.model }}</li>
+    </ol>
+  </nav>
+
+  <div class="row g-4">
+
+    <!-- ══════════════════════════════════
+         LEFT COLUMN — Photos + Details
+    ══════════════════════════════════ -->
+    <div class="col-lg-8">
+
+      <!-- ── PHOTO CAROUSEL ── -->
+      <div class="detail-gallery mb-4">
+        {% if listing.photos.all %}
+
+          <!-- Main carousel -->
+          <div id="vehicleCarousel" class="carousel slide" data-bs-ride="false" style="position:relative;">
+            <div class="carousel-inner rounded-3 overflow-hidden" style="background:var(--bg-subtle);">
+              {% for photo in listing.photos.all %}
+              <div class="carousel-item {% if forloop.first %}active{% endif %}">
+                <img src="{{ photo.image.url }}"
+                     class="d-block w-100 detail-main-img"
+                     alt="{{ listing.brand }} {{ listing.model }} — photo {{ forloop.counter }}"
+                     style="object-fit:cover;">
+              </div>
+              {% endfor %}
+            </div>
+
+            {% if listing.photos.count > 1 %}
+            <!-- Prev / Next arrows -->
+            <button class="carousel-control-prev" type="button"
+                    data-bs-target="#vehicleCarousel" data-bs-slide="prev">
+              <span class="carousel-control-prev-icon" aria-hidden="true"></span>
+              <span class="visually-hidden">Previous</span>
+            </button>
+            <button class="carousel-control-next" type="button"
+                    data-bs-target="#vehicleCarousel" data-bs-slide="next">
+              <span class="carousel-control-next-icon" aria-hidden="true"></span>
+              <span class="visually-hidden">Next</span>
+            </button>
+
+            <!-- Photo counter -->
+            <div class="carousel-counter" id="carouselCounter">
+              1 / {{ listing.photos.count }}
+            </div>
+            {% endif %}
+          </div>
+
+          <!-- Thumbnail strip -->
+          {% if listing.photos.count > 1 %}
+          <div class="d-flex gap-2 mt-2 overflow-auto photo-thumbnails pb-1">
+            {% for photo in listing.photos.all %}
+            <img src="{{ photo.image.url }}"
+                 class="thumb-img {% if forloop.first %}active{% endif %}"
+                 alt="thumb {{ forloop.counter }}"
+                 data-index="{{ forloop.counter0 }}"
+                 onclick="goToSlide({{ forloop.counter0 }}, this)">
+            {% endfor %}
+          </div>
+          {% endif %}
+
+        {% else %}
+          <!-- No photos placeholder -->
+          <div class="no-photo-large rounded-3">
+            <div class="text-center">
+              <i class="bi bi-car-front-fill display-1" style="color:var(--text-faint);"></i>
+              <p class="text-muted mt-2 mb-0">No photos uploaded</p>
+            </div>
+          </div>
+        {% endif %}
+      </div>
+
+      <!-- ── VEHICLE INFO ── -->
+      <div class="detail-info-card mb-4">
+        <div class="d-flex align-items-start justify-content-between flex-wrap gap-2 mb-3">
+          <div>
+            <h2 class="fw-800 mb-1" style="color:var(--text-primary);">
+              {{ listing.year }} {{ listing.brand }} {{ listing.model }}
+            </h2>
+            <span class="badge-listing-type badge-{{ listing.listing_type }} fs-6">
+              {{ listing.get_listing_type_display }}
+            </span>
+          </div>
+          <div class="text-end">
+            <div class="detail-price">₱{{ listing.price|floatformat:0 }}</div>
+            {% if listing.price_unit and listing.price_unit != 'total' %}
+              <div class="text-muted" style="font-size:0.9rem;">/ {{ listing.price_unit }}</div>
+            {% endif %}
+          </div>
+        </div>
+
+        <!-- Spec grid -->
+        <div class="row g-3 mt-1">
+          <div class="col-6 col-md-3">
+            <div class="spec-item">
+              <i class="bi bi-palette-fill text-primary"></i>
+              <span>{{ listing.color }}</span>
+              <small>Color</small>
+            </div>
+          </div>
+          <div class="col-6 col-md-3">
+            <div class="spec-item">
+              <i class="bi bi-fuel-pump-fill text-warning"></i>
+              <span>{{ listing.get_fuel_type_display }}</span>
+              <small>Fuel Type</small>
+            </div>
+          </div>
+          <div class="col-6 col-md-3">
+            <div class="spec-item">
+              <i class="bi bi-gear-fill text-secondary"></i>
+              <span>{{ listing.get_transmission_display }}</span>
+              <small>Transmission</small>
+            </div>
+          </div>
+          <div class="col-6 col-md-3">
+            <div class="spec-item">
+              <i class="bi bi-car-front-fill text-info"></i>
+              <span>{{ listing.get_body_type_display|default:"—" }}</span>
+              <small>Body Type</small>
+            </div>
+          </div>
+          {% if listing.mileage %}
+          <div class="col-6 col-md-3">
+            <div class="spec-item">
+              <i class="bi bi-speedometer2 text-danger"></i>
+              <span>{{ listing.mileage|floatformat:0 }} km</span>
+              <small>Mileage</small>
+            </div>
+          </div>
+          {% endif %}
+          {% if listing.engine_size %}
+          <div class="col-6 col-md-3">
+            <div class="spec-item">
+              <i class="bi bi-lightning-fill text-warning"></i>
+              <span>{{ listing.engine_size }}</span>
+              <small>Engine</small>
+            </div>
+          </div>
+          {% endif %}
+          <div class="col-6 col-md-3">
+            <div class="spec-item">
+              <i class="bi bi-people-fill text-success"></i>
+              <span>{{ listing.num_seats }} seats</span>
+              <small>Capacity</small>
+            </div>
+          </div>
+          <div class="col-6 col-md-3">
+            <div class="spec-item">
+              {% if listing.is_registered %}
+                <i class="bi bi-file-earmark-check-fill text-success"></i>
+                <span class="text-success">Complete</span>
+              {% else %}
+                <i class="bi bi-file-earmark-x text-muted"></i>
+                <span class="text-muted">Incomplete</span>
+              {% endif %}
+              <small>OR / CR</small>
+            </div>
+          </div>
+        </div>
+
+        <!-- Features row -->
+        <div class="mt-4">
+          <h6 class="fw-700 mb-2" style="color:var(--text-primary);">Features & Extras</h6>
+          <div class="d-flex flex-wrap gap-2">
+            {% if listing.has_ac %}
+              <span class="vtag vtag-green"><i class="bi bi-snow2"></i> Air Conditioning</span>
+            {% endif %}
+            {% if listing.has_dashcam %}
+              <span class="vtag vtag-blue"><i class="bi bi-camera-video-fill"></i> Dashcam</span>
+            {% endif %}
+            {% if listing.has_power_steering %}
+              <span class="vtag"><i class="bi bi-arrow-left-right"></i> Power Steering</span>
+            {% endif %}
+            {% if listing.has_power_windows %}
+              <span class="vtag"><i class="bi bi-window"></i> Power Windows</span>
+            {% endif %}
+            {% if listing.has_abs %}
+              <span class="vtag vtag-blue"><i class="bi bi-slash-circle"></i> ABS</span>
+            {% endif %}
+            {% if listing.has_airbags %}
+              <span class="vtag vtag-green"><i class="bi bi-shield-fill-check"></i> Airbags</span>
+            {% endif %}
+            {% if listing.has_sunroof %}
+              <span class="vtag"><i class="bi bi-brightness-high"></i> Sunroof</span>
+            {% endif %}
+            {% if listing.has_tinted %}
+              <span class="vtag"><i class="bi bi-window-dash"></i> Tinted</span>
+            {% endif %}
+            {% if listing.has_leather_seats %}
+              <span class="vtag"><i class="bi bi-stars"></i> Leather Seats</span>
+            {% endif %}
+            {% if listing.has_backup_camera %}
+              <span class="vtag vtag-blue"><i class="bi bi-camera-fill"></i> Backup Camera</span>
+            {% endif %}
+            {% if listing.has_gps %}
+              <span class="vtag vtag-blue"><i class="bi bi-map-fill"></i> GPS</span>
+            {% endif %}
+            {% if listing.has_bluetooth %}
+              <span class="vtag"><i class="bi bi-bluetooth"></i> Bluetooth</span>
+            {% endif %}
+            {% if listing.has_spare_tire %}
+              <span class="vtag"><i class="bi bi-circle"></i> Spare Tire</span>
+            {% endif %}
+            {% if listing.has_alarm %}
+              <span class="vtag"><i class="bi bi-shield-lock-fill"></i> Car Alarm</span>
+            {% endif %}
+            {% if listing.has_insurance %}
+              <span class="vtag vtag-green"><i class="bi bi-patch-check-fill"></i> With Insurance</span>
+            {% endif %}
+            {% if listing.delivery_available %}
+              <span class="vtag vtag-green"><i class="bi bi-truck"></i> Delivery Available</span>
+            {% endif %}
+          </div>
+        </div>
+
+        {% if listing.description %}
+        <div class="mt-4">
+          <h6 class="fw-700 mb-2" style="color:var(--text-primary);">Description</h6>
+          <p style="color:var(--text-secondary);line-height:1.75;white-space:pre-line;">{{ listing.description }}</p>
+        </div>
+        {% endif %}
+
+        {% if listing.plate_number %}
+        <div class="mt-3 p-2 rounded-2 d-inline-flex align-items-center gap-2"
+             style="background:var(--bg-subtle);border:1px solid var(--border);">
+          <i class="bi bi-credit-card-2-front-fill" style="color:var(--orange);"></i>
+          <span style="font-size:0.88rem;font-weight:600;color:var(--text-primary);">Plate: {{ listing.plate_number }}</span>
+        </div>
+        {% endif %}
+      </div>
+
+      <!-- ── PICKUP LOCATION + MAP ── -->
+      <div class="detail-info-card mb-4">
+        <h6 class="fw-700 mb-3 d-flex align-items-center gap-2" style="color:var(--text-primary);">
+          <i class="bi bi-geo-alt-fill text-warning"></i> Pickup / Viewing Location
+        </h6>
+
+        <!-- Location pill -->
+        <div class="location-pill mb-3">
+          <i class="bi bi-pin-map-fill"></i>
+          <span>{{ listing.pickup_location }}</span>
+        </div>
+
+        {% if listing.delivery_available %}
+        <div class="mb-3">
+          <span class="badge bg-success fs-6 px-3 py-2">
+            <i class="bi bi-truck me-1"></i>Delivery Available
+          </span>
+        </div>
+        {% endif %}
+
+        <!-- Google Maps embed using pickup_location field -->
+        <div class="map-embed">
+          <iframe
+            src="https://maps.google.com/maps?q={{ listing.pickup_location|urlencode }}&output=embed&z=15"
+            width="100%"
+            height="280"
+            style="border:0;border-radius:12px;display:block;"
+            allowfullscreen
+            loading="lazy"
+            referrerpolicy="no-referrer-when-downgrade"
+            title="Map of {{ listing.pickup_location }}">
+          </iframe>
+        </div>
+        <p class="text-muted mt-2 mb-0" style="font-size:0.78rem;">
+          <i class="bi bi-info-circle me-1"></i>
+          Map shows approximate area. Confirm exact location with the seller before visiting.
+        </p>
+      </div>
+
+    </div>
+
+    <!-- ══════════════════════════════════
+         RIGHT COLUMN — Seller + Inquiry
+    ══════════════════════════════════ -->
+    <div class="col-lg-4">
+      <div class="seller-card mb-4 sticky-top" style="top:80px;">
+
+        <!-- Seller info -->
+        <h6 class="fw-700 mb-3" style="color:var(--text-primary);">Seller Information</h6>
+        <div class="d-flex align-items-center gap-3 mb-4">
+          {% if listing.owner.profile.profile_picture %}
+            <img src="{{ listing.owner.profile.profile_picture.url }}" class="avatar-md rounded-circle" alt="">
+          {% else %}
+            <div class="avatar-md-placeholder"><i class="bi bi-person-fill"></i></div>
+          {% endif %}
+          <div>
+            <div class="fw-700" style="color:var(--text-primary);">
+              {{ listing.owner.profile.get_full_name|default:listing.owner.username }}
+            </div>
+            <small class="text-muted">Member since {{ listing.owner.date_joined|date:"Y" }}</small>
+          </div>
+        </div>
+
+        <!-- Contact details -->
+        <div class="contact-info mb-3">
+          {% if listing.owner.profile.phone_number %}
+          <div class="contact-item">
+            <i class="bi bi-telephone-fill text-primary"></i>
+            <span>{{ listing.owner.profile.phone_number }}</span>
+          </div>
+          {% endif %}
+          <div class="contact-item">
+            <i class="bi bi-envelope-fill text-primary"></i>
+            <span>{{ listing.owner.email }}</span>
+          </div>
+        </div>
+
+        <!-- Action buttons -->
+        <div class="d-grid gap-2">
+          {% if listing.owner.profile.phone_number %}
+          <a href="tel:{{ listing.owner.profile.phone_number }}" class="btn btn-success fw-600">
+            <i class="bi bi-telephone-fill me-2"></i>Call Seller
+          </a>
+          {% endif %}
+          <button class="btn btn-outline-primary fw-600" data-bs-toggle="collapse" data-bs-target="#inquiryForm">
+            <i class="bi bi-chat-dots me-2"></i>Send Inquiry
+          </button>
+        </div>
+
+        <!-- Inquiry form (collapsed by default) -->
+        <div class="collapse mt-3" id="inquiryForm">
+          <hr style="border-color:var(--border);">
+          <h6 class="fw-700 mb-2" style="color:var(--text-primary);">Send a Message</h6>
+          <form method="post">
+            {% csrf_token %}
+            {{ inquiry_form.message }}
+            <button type="submit" class="btn btn-primary w-100 mt-2 fw-600">
+              <i class="bi bi-send me-2"></i>Send Message
+            </button>
+          </form>
+        </div>
+
+        <!-- Owner controls -->
+        {% if user == listing.owner %}
+        <hr style="border-color:var(--border);">
+        <h6 class="fw-700 mb-2" style="color:var(--text-muted);font-size:0.78rem;text-transform:uppercase;letter-spacing:.6px;">Manage Listing</h6>
+        <div class="d-grid gap-2">
+          <a href="{% url 'edit_vehicle' listing.pk %}" class="btn btn-outline-warning fw-600">
+            <i class="bi bi-pencil me-2"></i>Edit Listing
+          </a>
+          <form method="post" action="{% url 'delete_vehicle' listing.pk %}" onsubmit="return confirm('Remove this listing permanently?')">
+            {% csrf_token %}
+            <button type="submit" class="btn btn-outline-danger w-100 fw-600">
+              <i class="bi bi-trash me-2"></i>Delete Listing
+            </button>
+          </form>
+        </div>
+        {% endif %}
+
+        <!-- Posted time -->
+        <p class="text-muted text-center mt-3 mb-0" style="font-size:0.75rem;">
+          <i class="bi bi-clock me-1"></i>Listed {{ listing.created_at|timesince }} ago
+        </p>
+      </div>
+    </div>
+
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function () {
+  const totalPhotos = {{ listing.photos.count }};
+  const carousel    = document.getElementById('vehicleCarousel');
+  const counter     = document.getElementById('carouselCounter');
+  const thumbs      = document.querySelectorAll('.thumb-img');
+
+  if (!carousel || totalPhotos <= 1) return;
+
+  // Update counter & active thumb on slide change
+  carousel.addEventListener('slid.bs.carousel', function (e) {
+    const idx = e.to;
+    if (counter) counter.textContent = (idx + 1) + ' / ' + totalPhotos;
+    thumbs.forEach((t, i) => t.classList.toggle('active', i === idx));
+
+    // Scroll active thumb into view
+    if (thumbs[idx]) {
+      thumbs[idx].scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+    }
+  });
+
+  // Keyboard navigation
+  document.addEventListener('keydown', function (e) {
+    if (!isCarouselVisible()) return;
+    const bsCarousel = bootstrap.Carousel.getOrCreateInstance(carousel);
+    if (e.key === 'ArrowLeft')  bsCarousel.prev();
+    if (e.key === 'ArrowRight') bsCarousel.next();
+  });
+
+  function isCarouselVisible() {
+    const rect = carousel.getBoundingClientRect();
+    return rect.top < window.innerHeight && rect.bottom > 0;
+  }
+})();
+
+// Click-a-thumb to jump to slide
+function goToSlide(index, el) {
+  const carousel  = document.getElementById('vehicleCarousel');
+  const bsCarousel = bootstrap.Carousel.getOrCreateInstance(carousel);
+  bsCarousel.to(index);
+}
+
+// Toggle password visibility (used on other pages but harmless here)
+function togglePw(id, iconId) {
+  const el = document.getElementById(id);
+  const ic = document.getElementById(iconId);
+  if (!el || !ic) return;
+  el.type = el.type === 'password' ? 'text' : 'password';
+  ic.classList.toggle('bi-eye');
+  ic.classList.toggle('bi-eye-slash');
+}
+</script>
+{% endblock %}

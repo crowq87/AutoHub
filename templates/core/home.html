@@ -1,0 +1,195 @@
+{% extends 'core/base.html' %}
+{% load static %}
+
+{% block title %}AutoHub — Your Vehicle Marketplace in Pinamungajan & Toledo{% endblock %}
+
+{% block content %}
+
+<section class="hero-section">
+  <div class="container position-relative">
+    <div class="row justify-content-center text-center">
+      <div class="col-lg-8">
+
+        <div class="d-flex align-items-center justify-content-center gap-2 mb-4">
+          <div class="brand-icon" style="width:48px;height:48px;font-size:1.35rem;">
+            <i class="bi bi-car-front-fill"></i>
+          </div>
+          <span class="fs-3 fw-800">
+            <span class="text-warning">Auto</span><span class="text-white">Hub</span>
+          </span>
+        </div>
+
+        <h1 class="display-4 fw-800 text-white mb-3 lh-sm">
+          Buy, Sell &amp; Rent<br>
+          <span class="text-warning">Vehicles</span>
+          <span class="text-white"> in Your Area</span>
+        </h1>
+
+        <p class="lead mb-4" style="color:rgba(255,255,255,0.82);">
+          The trusted platform for vehicle transactions in
+          <strong class="text-white">Pinamungajan</strong> and
+          <strong class="text-white">Toledo</strong>, Cebu.
+        </p>
+
+        <div class="d-flex flex-wrap justify-content-center gap-3 mb-5">
+          <a href="{% url 'login' %}" class="btn btn-warning btn-lg px-4 fw-700">
+            <i class="bi bi-search me-2"></i>Browse Vehicles
+          </a>
+          <a href="{% url 'signup' %}" class="btn btn-outline-light btn-lg px-4">
+            <i class="bi bi-plus me-2"></i>Post Your Vehicle
+          </a>
+        </div>
+
+        <div class="d-flex justify-content-center gap-5">
+          <div class="stat-pill">
+            <span class="stat-number">{{ total_users }}+</span>
+            <span class="stat-label">Registered Users</span>
+          </div>
+          <div class="stat-pill">
+            <span class="stat-number">{{ for_sale }}+</span>
+            <span class="stat-label">Cars for Sale</span>
+          </div>
+          <div class="stat-pill">
+            <span class="stat-number">{{ for_rent }}+</span>
+            <span class="stat-label">Cars for Rent</span>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="py-5" style="background:#f9fafb;">
+  <div class="container">
+    <div class="text-center mb-5">
+      <h2 class="fw-800">Why Choose AutoHub?</h2>
+      <p class="text-muted">We make vehicle transactions simple, secure, and accessible for everyone in our community.</p>
+    </div>
+    <div class="row g-4 text-center">
+      <div class="col-md-4">
+        <div class="how-card">
+          <div class="how-icon bg-warning"><i class="bi bi-shield-check-fill"></i></div>
+          <h5 class="fw-700 mt-3">Trusted &amp; Secure</h5>
+          <p class="text-muted">Every listing is reviewed. Buy and sell with confidence in a verified community marketplace.</p>
+        </div>
+      </div>
+      <div class="col-md-4">
+        <div class="how-card">
+          <div class="how-icon bg-primary"><i class="bi bi-geo-alt-fill"></i></div>
+          <h5 class="fw-700 mt-3">Local &amp; Convenient</h5>
+          <p class="text-muted">Find vehicles near you in Pinamungajan and Toledo — no need to travel far for a great deal.</p>
+        </div>
+      </div>
+      <div class="col-md-4">
+        <div class="how-card">
+          <div class="how-icon bg-success"><i class="bi bi-phone-fill"></i></div>
+          <h5 class="fw-700 mt-3">Easy to Use</h5>
+          <p class="text-muted">Post, browse, and connect with buyers or sellers in just a few taps from any device.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="py-5 bg-white">
+  <div class="container">
+    <div class="text-center mb-5">
+      <h2 class="fw-800">How AutoHub Works</h2>
+      <p class="text-muted">Three simple steps to your next vehicle deal</p>
+    </div>
+    <div class="row g-4 text-center">
+      <div class="col-md-4">
+        <div class="how-card">
+          <div class="how-icon bg-warning"><i class="bi bi-person-plus-fill"></i></div>
+          <h5 class="fw-700 mt-3">1. Create an Account</h5>
+          <p class="text-muted">Register for free with your name, email, and phone number in under a minute.</p>
+        </div>
+      </div>
+      <div class="col-md-4">
+        <div class="how-card">
+          <div class="how-icon bg-primary"><i class="bi bi-camera-fill"></i></div>
+          <h5 class="fw-700 mt-3">2. Post or Browse</h5>
+          <p class="text-muted">List your vehicle with photos and details, or search available cars in your area.</p>
+        </div>
+      </div>
+      <div class="col-md-4">
+        <div class="how-card">
+          <div class="how-icon bg-success"><i class="bi bi-handshake-fill"></i></div>
+          <h5 class="fw-700 mt-3">3. Connect &amp; Deal</h5>
+          <p class="text-muted">Contact sellers or buyers directly using their listed phone or email. Close the deal!</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="py-5" style="background:#f9fafb;">
+  <div class="container">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+      <div>
+        <h2 class="fw-800 mb-1">Featured Vehicles</h2>
+        <p class="text-muted mb-0">Latest listings from the community</p>
+      </div>
+      <a href="{% url 'login' %}" class="btn btn-outline-primary fw-600">
+        View All <i class="bi bi-arrow-right ms-1"></i>
+      </a>
+    </div>
+
+    {% if featured %}
+    <div class="row g-4">
+      {% for vehicle in featured %}
+      <div class="col-lg-4 col-md-6">
+        <div class="vehicle-card h-100">
+          <div class="vehicle-card-img">
+            {% if vehicle.get_main_photo %}
+              <img src="{{ vehicle.get_main_photo }}" alt="{{ vehicle.brand }} {{ vehicle.model }}">
+            {% else %}
+              <div class="no-photo"><i class="bi bi-car-front-fill"></i></div>
+            {% endif %}
+            <span class="badge-listing-type badge-{{ vehicle.listing_type }}">{{ vehicle.get_listing_type_display }}</span>
+          </div>
+          <div class="vehicle-card-body">
+            <h5 class="fw-700 mb-1">{{ vehicle.year }} {{ vehicle.brand }} {{ vehicle.model }}</h5>
+            <div class="vehicle-price">
+              ₱{{ vehicle.price|floatformat:0 }}
+              {% if vehicle.price_unit %}<span class="price-unit"> {{ vehicle.price_unit }}</span>{% endif %}
+            </div>
+            <div class="vehicle-meta mt-2">
+              <span><i class="bi bi-geo-alt-fill text-warning"></i> {{ vehicle.pickup_location }}</span>
+            </div>
+            <div class="vehicle-tags mt-2">
+              <span class="vtag"><i class="bi bi-fuel-pump-fill"></i> {{ vehicle.get_fuel_type_display }}</span>
+              {% if vehicle.has_ac %}<span class="vtag vtag-blue"><i class="bi bi-snow2"></i> AC</span>{% endif %}
+              {% if vehicle.has_dashcam %}<span class="vtag vtag-green"><i class="bi bi-camera-video-fill"></i> Dashcam</span>{% endif %}
+              <span class="vtag"><i class="bi bi-gear-fill"></i> {{ vehicle.get_transmission_display }}</span>
+            </div>
+            <a href="{% url 'login' %}" class="btn btn-primary w-100 mt-3 fw-600">View Details</a>
+          </div>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}
+    <div class="text-center py-5">
+      <i class="bi bi-car-front display-1 text-muted"></i>
+      <h5 class="mt-3 text-muted">No listings yet. Be the first to post!</h5>
+      <a href="{% url 'signup' %}" class="btn btn-warning mt-3 fw-600 px-4">Get Started</a>
+    </div>
+    {% endif %}
+  </div>
+</section>
+
+<section class="cta-section py-5">
+  <div class="container text-center py-3">
+    <h2 class="fw-800 text-white mb-3">Ready to Buy, Sell, or Rent?</h2>
+    <p class="mb-4 fs-5" style="color:rgba(255,255,255,0.80);">
+      Join hundreds of users in Pinamungajan and Toledo already using AutoHub.
+    </p>
+    <a href="{% url 'signup' %}" class="btn btn-warning btn-lg px-5 fw-700">
+      <i class="bi bi-rocket-takeoff me-2"></i>Join AutoHub Free
+    </a>
+  </div>
+</section>
+
+{% endblock %}

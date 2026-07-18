@@ -1,0 +1,119 @@
+{% extends 'core/base.html' %}
+{% block title %}Browse Vehicles — AutoHub{% endblock %}
+
+{% block content %}
+<div class="dashboard-page py-4">
+  <div class="container">
+
+    <!-- Search & Filter Bar -->
+    <div class="filter-bar mb-4">
+      <form method="get" id="filterForm">
+        <div class="row g-2 align-items-end">
+          <div class="col-md-4">
+            <label class="form-label fw-600 small">Search</label>
+            {{ form.q }}
+          </div>
+          <div class="col-md-2">
+            <label class="form-label fw-600 small">Type</label>
+            {{ form.listing_type }}
+          </div>
+          <div class="col-md-2">
+            <label class="form-label fw-600 small">Brand</label>
+            {{ form.brand }}
+          </div>
+          <div class="col-md-1">
+            <label class="form-label fw-600 small">Min ₱</label>
+            {{ form.min_price }}
+          </div>
+          <div class="col-md-1">
+            <label class="form-label fw-600 small">Max ₱</label>
+            {{ form.max_price }}
+          </div>
+          <div class="col-md-2 d-flex gap-2">
+            <button type="submit" class="btn btn-primary w-100 fw-600">
+              <i class="bi bi-search"></i> Filter
+            </button>
+            <a href="{% url 'dashboard' %}" class="btn btn-outline-secondary" title="Clear">
+              <i class="bi bi-x-lg"></i>
+            </a>
+          </div>
+        </div>
+      </form>
+    </div>
+
+    <!-- Results Header -->
+    <div class="d-flex justify-content-between align-items-center mb-3">
+      <h5 class="fw-700 mb-0">
+        {% if listings %}{{ listings|length }} Vehicle{% if listings|length != 1 %}s{% endif %} Found
+        {% else %}No Vehicles Found{% endif %}
+      </h5>
+      <a href="{% url 'post_vehicle' %}" class="btn btn-warning fw-600">
+        <i class="bi bi-plus-circle me-1"></i> Post Your Vehicle
+      </a>
+    </div>
+
+    <!-- Listings Grid -->
+    {% if listings %}
+    <div class="row g-4">
+      {% for vehicle in listings %}
+      <div class="col-xl-4 col-md-6">
+        <div class="vehicle-card h-100">
+          <div class="vehicle-card-img">
+            {% if vehicle.get_main_photo %}
+              <img src="{{ vehicle.get_main_photo }}" alt="{{ vehicle.brand }} {{ vehicle.model }}">
+            {% else %}
+              <div class="no-photo"><i class="bi bi-car-front-fill"></i></div>
+            {% endif %}
+            <span class="badge-listing-type badge-{{ vehicle.listing_type }}">{{ vehicle.get_listing_type_display }}</span>
+            {% if vehicle.photos.count > 1 %}
+              <span class="photo-count"><i class="bi bi-images"></i> {{ vehicle.photos.count }}</span>
+            {% endif %}
+          </div>
+          <div class="vehicle-card-body">
+            <h5 class="fw-700 mb-1">{{ vehicle.year }} {{ vehicle.brand }} {{ vehicle.model }}</h5>
+            <div class="vehicle-price">
+              ₱{{ vehicle.price|floatformat:0 }}
+              {% if vehicle.price_unit %}<span class="price-unit"> {{ vehicle.price_unit }}</span>{% endif %}
+            </div>
+            <div class="vehicle-meta mt-2">
+              <span><i class="bi bi-geo-alt-fill text-warning"></i> {{ vehicle.pickup_location }}</span>
+            </div>
+            <div class="vehicle-tags mt-2">
+              <span class="vtag"><i class="bi bi-fuel-pump-fill"></i> {{ vehicle.get_fuel_type_display }}</span>
+              <span class="vtag"><i class="bi bi-palette-fill"></i> {{ vehicle.color }}</span>
+              {% if vehicle.has_ac %}<span class="vtag vtag-green"><i class="bi bi-snow2"></i> AC</span>{% endif %}
+              {% if vehicle.has_dashcam %}<span class="vtag vtag-blue"><i class="bi bi-camera-video-fill"></i> Dashcam</span>{% endif %}
+              <span class="vtag"><i class="bi bi-gear-fill"></i> {{ vehicle.get_transmission_display }}</span>
+            </div>
+
+            <div class="posted-by mt-3 d-flex align-items-center gap-2">
+              {% if vehicle.owner.profile.profile_picture %}
+                <img src="{{ vehicle.owner.profile.profile_picture.url }}" class="avatar-xs rounded-circle" alt="">
+              {% else %}
+                <div class="avatar-xs-placeholder"><i class="bi bi-person-fill"></i></div>
+              {% endif %}
+              <span class="small text-muted">by <strong>{{ vehicle.owner.profile.get_full_name|default:vehicle.owner.username }}</strong></span>
+              <span class="ms-auto small text-muted">{{ vehicle.created_at|timesince }} ago</span>
+            </div>
+
+            <a href="{% url 'vehicle_detail' vehicle.pk %}" class="btn btn-primary w-100 mt-3 fw-600">
+              <i class="bi bi-eye me-2"></i>View Details
+            </a>
+          </div>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}
+    <div class="empty-state text-center py-5">
+      <i class="bi bi-car-front display-1 text-muted"></i>
+      <h4 class="mt-3 fw-700">No vehicles found</h4>
+      <p class="text-muted">Try adjusting your filters or be the first to post!</p>
+      <a href="{% url 'post_vehicle' %}" class="btn btn-warning mt-2 fw-600">
+        <i class="bi bi-plus-circle me-2"></i>Post a Vehicle
+      </a>
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

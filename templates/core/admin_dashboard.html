@@ -1,0 +1,144 @@
+{% extends 'core/base.html' %}
+{% block title %}Admin Panel — AutoHub{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+  <div class="d-flex align-items-center justify-content-between mb-4">
+    <div>
+      <h3 class="fw-800 mb-0"><i class="bi bi-shield-fill-check text-primary me-2"></i>Admin Dashboard</h3>
+      <p class="text-muted mb-0">Manage users, listings, and platform activity</p>
+    </div>
+    <div class="d-flex gap-2">
+      <a href="{% url 'admin_users' %}" class="btn btn-outline-primary fw-600">
+        <i class="bi bi-people me-1"></i>Manage Users
+      </a>
+      <a href="/admin/" class="btn btn-outline-secondary fw-600">
+        <i class="bi bi-gear me-1"></i>Django Admin
+      </a>
+    </div>
+  </div>
+
+  <!-- Stats Row -->
+  <div class="row g-3 mb-4">
+    <div class="col-6 col-md-3">
+      <div class="stat-card stat-blue">
+        <i class="bi bi-people-fill"></i>
+        <div class="stat-num">{{ total_users }}</div>
+        <div class="stat-lbl">Total Users</div>
+      </div>
+    </div>
+    <div class="col-6 col-md-3">
+      <div class="stat-card stat-green">
+        <i class="bi bi-car-front-fill"></i>
+        <div class="stat-num">{{ total_listings }}</div>
+        <div class="stat-lbl">Active Listings</div>
+      </div>
+    </div>
+    <div class="col-6 col-md-3">
+      <div class="stat-card stat-orange">
+        <i class="bi bi-tag-fill"></i>
+        <div class="stat-num">{{ for_sale }}</div>
+        <div class="stat-lbl">For Sale</div>
+      </div>
+    </div>
+    <div class="col-6 col-md-3">
+      <div class="stat-card stat-purple">
+        <i class="bi bi-key-fill"></i>
+        <div class="stat-num">{{ for_rent }}</div>
+        <div class="stat-lbl">For Rent</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="row g-4">
+    <!-- Pending Approval -->
+    {% if unapproved %}
+    <div class="col-12">
+      <div class="admin-card">
+        <h6 class="fw-700 mb-3 text-warning"><i class="bi bi-exclamation-triangle-fill me-2"></i>Pending Approval ({{ unapproved|length }})</h6>
+        <div class="table-responsive">
+          <table class="table table-hover align-middle">
+            <thead class="table-warning">
+              <tr>
+                <th>Vehicle</th><th>Owner</th><th>Type</th><th>Price</th><th>Posted</th><th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for l in unapproved %}
+              <tr>
+                <td class="fw-600">{{ l.year }} {{ l.brand }} {{ l.model }}</td>
+                <td>{{ l.owner.username }}</td>
+                <td><span class="badge-listing-type badge-{{ l.listing_type }}">{{ l.get_listing_type_display }}</span></td>
+                <td>₱{{ l.price }}</td>
+                <td class="small text-muted">{{ l.created_at|date:"M d, Y" }}</td>
+                <td>
+                  <a href="{% url 'admin_approve_listing' l.pk %}" class="btn btn-sm btn-success me-1">Approve</a>
+                  <a href="{% url 'admin_remove_listing' l.pk %}" class="btn btn-sm btn-outline-danger" onclick="return confirm('Remove listing?')">Remove</a>
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+    {% endif %}
+
+    <!-- Recent Users -->
+    <div class="col-lg-6">
+      <div class="admin-card">
+        <div class="d-flex justify-content-between mb-3">
+          <h6 class="fw-700 mb-0"><i class="bi bi-person-plus me-2 text-primary"></i>Recent Users</h6>
+          <a href="{% url 'admin_users' %}" class="btn btn-sm btn-outline-primary">View All</a>
+        </div>
+        <div class="table-responsive">
+          <table class="table table-hover align-middle small">
+            <thead class="table-light">
+              <tr><th>Username</th><th>Name</th><th>Joined</th></tr>
+            </thead>
+            <tbody>
+              {% for u in recent_users %}
+              <tr>
+                <td class="fw-600">@{{ u.username }}</td>
+                <td>{{ u.first_name }} {{ u.last_name }}</td>
+                <td class="text-muted">{{ u.date_joined|date:"M d, Y" }}</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- Recent Listings -->
+    <div class="col-lg-6">
+      <div class="admin-card">
+        <div class="d-flex justify-content-between mb-3">
+          <h6 class="fw-700 mb-0"><i class="bi bi-car-front me-2 text-success"></i>Recent Listings</h6>
+          <a href="{% url 'dashboard' %}" class="btn btn-sm btn-outline-success">View All</a>
+        </div>
+        <div class="table-responsive">
+          <table class="table table-hover align-middle small">
+            <thead class="table-light">
+              <tr><th>Vehicle</th><th>Owner</th><th>Type</th><th>Actions</th></tr>
+            </thead>
+            <tbody>
+              {% for l in recent_listings %}
+              <tr>
+                <td class="fw-600">{{ l.brand }} {{ l.model }}</td>
+                <td>{{ l.owner.username }}</td>
+                <td><span class="badge-listing-type badge-{{ l.listing_type }}">{{ l.get_listing_type_display }}</span></td>
+                <td>
+                  <a href="{% url 'vehicle_detail' l.pk %}" class="btn btn-xs btn-outline-primary me-1">View</a>
+                  <a href="{% url 'admin_remove_listing' l.pk %}" class="btn btn-xs btn-outline-danger" onclick="return confirm('Remove?')">Remove</a>
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

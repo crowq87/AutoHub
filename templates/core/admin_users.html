@@ -1,0 +1,60 @@
+{% extends 'core/base.html' %}
+{% block title %}Manage Users — AutoHub Admin{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+  <div class="d-flex align-items-center mb-4 gap-3">
+    <a href="{% url 'admin_dashboard' %}" class="btn btn-outline-secondary"><i class="bi bi-arrow-left"></i></a>
+    <div>
+      <h3 class="fw-800 mb-0"><i class="bi bi-people-fill text-primary me-2"></i>Manage Users</h3>
+      <p class="text-muted mb-0">{{ users|length }} registered users</p>
+    </div>
+  </div>
+
+  <div class="admin-card">
+    <div class="table-responsive">
+      <table class="table table-hover align-middle">
+        <thead class="table-dark">
+          <tr>
+            <th>#</th><th>Username</th><th>Full Name</th><th>Email</th><th>Phone</th><th>Joined</th><th>Listings</th><th>Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for u in users %}
+          <tr>
+            <td class="text-muted small">{{ forloop.counter }}</td>
+            <td>
+              <div class="d-flex align-items-center gap-2">
+                {% if u.profile.profile_picture %}
+                  <img src="{{ u.profile.profile_picture.url }}" class="avatar-xs rounded-circle" alt="">
+                {% else %}
+                  <div class="avatar-xs-placeholder"><i class="bi bi-person-fill"></i></div>
+                {% endif %}
+                <span class="fw-600">@{{ u.username }}</span>
+              </div>
+            </td>
+            <td>{{ u.first_name }} {{ u.last_name }}</td>
+            <td class="small">{{ u.email }}</td>
+            <td class="small">
+              {% if u.profile.phone_number %}{{ u.profile.phone_number }}{% else %}<span class="text-muted">—</span>{% endif %}
+            </td>
+            <td class="small text-muted">{{ u.date_joined|date:"M d, Y" }}</td>
+            <td>
+              <span class="badge bg-primary rounded-pill">{{ u.listings.filter.count|default:"0" }}</span>
+            </td>
+            <td>
+              {% if u.is_superuser %}<span class="badge bg-danger">Superuser</span>
+              {% elif u.is_staff %}<span class="badge bg-warning text-dark">Staff</span>
+              {% elif u.is_active %}<span class="badge bg-success">Active</span>
+              {% else %}<span class="badge bg-secondary">Inactive</span>{% endif %}
+            </td>
+          </tr>
+          {% empty %}
+          <tr><td colspan="8" class="text-center text-muted py-4">No users found.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,106 @@
+{% extends 'core/base.html' %}
+{% block title %}My Profile — AutoHub{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+  <div class="row g-4">
+    <!-- LEFT: Profile Info -->
+    <div class="col-lg-4">
+      <div class="profile-card mb-4">
+        <div class="profile-pic-wrap">
+          {% if profile.profile_picture %}
+            <img src="{{ profile.profile_picture.url }}" id="profileImg" class="profile-pic" alt="Profile Picture">
+          {% else %}
+            <div class="profile-pic-placeholder" id="profileImg">
+              <i class="bi bi-person-fill"></i>
+            </div>
+          {% endif %}
+        </div>
+        <h4 class="fw-800 mt-3">{{ profile.get_full_name|default:user.username }}</h4>
+        <p class="text-muted">@{{ user.username }}</p>
+        <div class="profile-stats d-flex justify-content-center gap-4 mt-3">
+          <div class="text-center">
+            <div class="fw-800 fs-4 text-primary">{{ my_listings.count }}</div>
+            <small class="text-muted">Listings</small>
+          </div>
+          <div class="text-center">
+            <div class="fw-800 fs-4 text-success">{{ user.date_joined|date:"Y" }}</div>
+            <small class="text-muted">Joined</small>
+          </div>
+        </div>
+      </div>
+
+      <!-- Edit Form -->
+      <div class="profile-edit-card">
+        <h6 class="fw-700 mb-3"><i class="bi bi-pencil-fill me-2 text-primary"></i>Edit Profile</h6>
+        <form method="post" enctype="multipart/form-data" novalidate>
+          {% csrf_token %}
+          {% for field in form %}
+          <div class="mb-3">
+            <label class="form-label fw-600 small">{{ field.label }}</label>
+            {{ field }}
+            {% if field.errors %}<div class="text-danger small">{{ field.errors.0 }}</div>{% endif %}
+          </div>
+          {% endfor %}
+          <button type="submit" class="btn btn-primary w-100 fw-600">
+            <i class="bi bi-check-circle me-2"></i>Save Changes
+          </button>
+        </form>
+      </div>
+    </div>
+
+    <!-- RIGHT: My Listings -->
+    <div class="col-lg-8">
+      <div class="d-flex justify-content-between align-items-center mb-4">
+        <h5 class="fw-800 mb-0"><i class="bi bi-list-ul me-2 text-primary"></i>My Vehicle Listings</h5>
+        <a href="{% url 'post_vehicle' %}" class="btn btn-warning fw-600">
+          <i class="bi bi-plus-circle me-1"></i>Post New Vehicle
+        </a>
+      </div>
+
+      {% if my_listings %}
+        <div class="row g-3">
+          {% for vehicle in my_listings %}
+          <div class="col-md-6">
+            <div class="vehicle-card compact">
+              <div class="vehicle-card-img">
+                {% if vehicle.get_main_photo %}
+                  <img src="{{ vehicle.get_main_photo }}" alt="">
+                {% else %}
+                  <div class="no-photo"><i class="bi bi-car-front-fill"></i></div>
+                {% endif %}
+                <span class="badge-listing-type badge-{{ vehicle.listing_type }}">{{ vehicle.get_listing_type_display }}</span>
+              </div>
+              <div class="vehicle-card-body">
+                <h6 class="fw-700 mb-1">{{ vehicle.year }} {{ vehicle.brand }} {{ vehicle.model }}</h6>
+                <div class="vehicle-price small">₱{{ vehicle.price|floatformat:0 }} <span class="text-muted">{{ vehicle.price_unit }}</span></div>
+                <div class="small text-muted mt-1"><i class="bi bi-geo-alt-fill text-warning"></i> {{ vehicle.pickup_location }}</div>
+                <div class="d-flex gap-2 mt-3">
+                  <a href="{% url 'vehicle_detail' vehicle.pk %}" class="btn btn-sm btn-outline-primary flex-fill">View</a>
+                  <a href="{% url 'edit_vehicle' vehicle.pk %}" class="btn btn-sm btn-outline-warning flex-fill">Edit</a>
+                  <form method="post" action="{% url 'delete_vehicle' vehicle.pk %}" onsubmit="return confirm('Delete this listing?')">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-sm btn-outline-danger">
+                      <i class="bi bi-trash"></i>
+                    </button>
+                  </form>
+                </div>
+              </div>
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+      {% else %}
+        <div class="empty-state text-center py-5 bg-light rounded-3">
+          <i class="bi bi-car-front display-1 text-muted"></i>
+          <h5 class="mt-3 fw-700">You have no listings yet</h5>
+          <p class="text-muted">Post your first vehicle to get started!</p>
+          <a href="{% url 'post_vehicle' %}" class="btn btn-warning mt-2 fw-600">
+            <i class="bi bi-plus-circle me-2"></i>Post a Vehicle
+          </a>
+        </div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}

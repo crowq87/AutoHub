@@ -1,0 +1,47 @@
+{% extends 'core/base.html' %}
+{% block title %}Notifications — AutoHub{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+  <div class="row justify-content-center">
+    <div class="col-lg-8">
+      <div class="d-flex align-items-center justify-content-between mb-4">
+        <h4 class="fw-800 mb-0"><i class="bi bi-bell-fill text-warning me-2"></i>Notifications</h4>
+        <span class="badge bg-primary rounded-pill">{{ notifications|length }}</span>
+      </div>
+
+      {% if notifications %}
+        <div class="notif-list">
+          {% for notif in notifications %}
+          <div class="notif-item {% if not notif.is_read %}unread{% endif %}">
+            <div class="notif-icon notif-{{ notif.notif_type }}">
+              {% if notif.notif_type == 'message' %}<i class="bi bi-chat-dots-fill"></i>
+              {% elif notif.notif_type == 'new_listing' %}<i class="bi bi-car-front-fill"></i>
+              {% elif notif.notif_type == 'update' %}<i class="bi bi-arrow-repeat"></i>
+              {% else %}<i class="bi bi-bell-fill"></i>{% endif %}
+            </div>
+            <div class="notif-content">
+              <div class="fw-600">{{ notif.title }}</div>
+              <div class="text-muted small">{{ notif.message }}</div>
+              {% if notif.related_listing %}
+                <a href="{% url 'vehicle_detail' notif.related_listing.pk %}" class="btn btn-sm btn-outline-primary mt-2">View Listing</a>
+              {% endif %}
+            </div>
+            <div class="notif-time small text-muted">
+              {{ notif.created_at|timesince }} ago
+              {% if not notif.is_read %}<span class="unread-dot"></span>{% endif %}
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+      {% else %}
+        <div class="empty-state text-center py-5">
+          <i class="bi bi-bell-slash display-1 text-muted"></i>
+          <h5 class="mt-3 fw-700">No notifications yet</h5>
+          <p class="text-muted">You'll see updates here when you get messages or new listings.</p>
+        </div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}

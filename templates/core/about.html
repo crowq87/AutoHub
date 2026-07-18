@@ -1,0 +1,130 @@
+{% extends 'core/base.html' %}
+{% block title %}About AutoHub{% endblock %}
+
+{% block content %}
+<!-- About Hero -->
+<section class="about-hero py-5">
+  <div class="container">
+    <div class="row align-items-center g-5">
+      <div class="col-lg-6">
+        <span class="badge bg-warning text-dark mb-3 px-3 py-2">About Us</span>
+        <h1 class="fw-800 display-5 mb-4">Your Trusted Local<br><span class="text-primary">Vehicle Marketplace</span></h1>
+        <p class="lead text-muted">AutoHub is a web-based platform designed to simplify the process of purchasing, selling, and renting vehicles for users in the Pinamungajan and Toledo region.</p>
+        <p class="text-muted">Using our platform, locals can easily manage transactions, publish listings, and browse available vehicles from any internet-enabled device.</p>
+        <a href="{% url 'signup' %}" class="btn btn-primary btn-lg mt-3 fw-600">
+          <i class="bi bi-person-plus me-2"></i>Join AutoHub Today
+        </a>
+      </div>
+      <div class="col-lg-6">
+        <div class="about-graphic text-center">
+          <i class="bi bi-car-front-fill about-big-icon text-primary"></i>
+          <div class="about-circles">
+            <div class="about-circle c1"><i class="bi bi-shield-check-fill text-success"></i></div>
+            <div class="about-circle c2"><i class="bi bi-people-fill text-primary"></i></div>
+            <div class="about-circle c3"><i class="bi bi-geo-alt-fill text-warning"></i></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Mission & Vision -->
+<section class="py-5 bg-light">
+  <div class="container">
+    <div class="row g-4">
+      <div class="col-md-6">
+        <div class="mission-card">
+          <div class="mission-icon bg-primary"><i class="bi bi-bullseye"></i></div>
+          <h4 class="fw-800 mt-3">Our Mission</h4>
+          <p class="text-muted">To provide a simple, accessible, and organized platform for vehicle transactions in Pinamungajan and Toledo — connecting buyers, sellers, and renters in one trusted marketplace.</p>
+        </div>
+      </div>
+      <div class="col-md-6">
+        <div class="mission-card">
+          <div class="mission-icon bg-warning"><i class="bi bi-eye-fill"></i></div>
+          <h4 class="fw-800 mt-3">Our Vision</h4>
+          <p class="text-muted">To become the go-to vehicle marketplace for communities across Cebu, promoting modern, digital-first approaches to buying, selling, and renting vehicles.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Features -->
+<section class="py-5">
+  <div class="container">
+    <h2 class="fw-800 text-center mb-5">Platform Features</h2>
+    <div class="row g-4">
+      {% for feature in features %}
+      <div class="col-md-4 col-lg-4">
+        <div class="feature-card text-center">
+          <div class="feature-icon {{ feature.color }}"><i class="bi {{ feature.icon }}"></i></div>
+          <h6 class="fw-700 mt-3">{{ feature.title }}</h6>
+          <p class="text-muted small">{{ feature.desc }}</p>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+</section>
+
+<!-- Service Area -->
+<section class="py-5 bg-light">
+  <div class="container">
+    <div class="row align-items-center g-4">
+      <div class="col-md-6">
+        <h2 class="fw-800 mb-3">Our Service Area</h2>
+        <p class="text-muted mb-3">AutoHub primarily serves the communities of:</p>
+        <div class="location-badges d-flex flex-wrap gap-3 mb-4">
+          <span class="location-badge"><i class="bi bi-geo-alt-fill text-warning me-2"></i>Pinamungajan, Cebu</span>
+          <span class="location-badge"><i class="bi bi-geo-alt-fill text-warning me-2"></i>Toledo City, Cebu</span>
+        </div>
+        <p class="text-muted">We are expanding to more areas in Cebu soon. Join now and be part of the growing AutoHub community!</p>
+      </div>
+      <div class="col-md-6">
+        <div class="map-embed">
+          <iframe
+            src="https://maps.google.com/maps?q=Toledo+City+Cebu+Philippines&output=embed"
+            width="100%" height="300" style="border:0;border-radius:16px;" allowfullscreen loading="lazy">
+          </iframe>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Contact -->
+<section class="py-5">
+  <div class="container">
+    <div class="text-center mb-4">
+      <h2 class="fw-800">Get In Touch</h2>
+      <p class="text-muted">Have questions or concerns? Contact us.</p>
+    </div>
+    <div class="row justify-content-center g-3">
+      <div class="col-md-4 text-center">
+        <div class="contact-info-card">
+          <i class="bi bi-envelope-fill text-primary fs-2 mb-3"></i>
+          <h6 class="fw-700">Email Us</h6>
+          <p class="text-muted">autohub@email.com</p>
+        </div>
+      </div>
+      <div class="col-md-4 text-center">
+        <div class="contact-info-card">
+          <i class="bi bi-facebook text-primary fs-2 mb-3"></i>
+          <h6 class="fw-700">Facebook</h6>
+          <p class="text-muted">facebook.com/autohub</p>
+        </div>
+      </div>
+      <div class="col-md-4 text-center">
+        <div class="contact-info-card">
+          <i class="bi bi-geo-alt-fill text-warning fs-2 mb-3"></i>
+          <h6 class="fw-700">Location</h6>
+          <p class="text-muted">Pinamungajan & Toledo, Cebu</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+{% endblock %}
