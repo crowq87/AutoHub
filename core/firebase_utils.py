@@ -1,6 +1,12 @@
 import requests
 from django.conf import settings
+import socket
+import urllib3.util.connection as urllib3_cn
 
+def allowed_gai_family():
+    return socket.AF_INET  # force IPv4
+
+urllib3_cn.allowed_gai_family = allowed_gai_family
 FIREBASE_SIGNIN_URL = (
     "https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword"
     "?key={api_key}"
