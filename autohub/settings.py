@@ -18,7 +18,7 @@ cloudinary.config(
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 SECRET_KEY = config('SECRET_KEY', default='django-insecure-autohub-change-this-in-production-2024')
-
+CSRF_TRUSTED_ORIGINS = config('CSRF_TRUSTED_ORIGINS', default='', cast=Csv())
 FIREBASE_WEB_API_KEY = config('FIREBASE_WEB_API_KEY')
 
 DEBUG = config('DEBUG', default=True, cast=bool)
