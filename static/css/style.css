@@ -129,8 +129,14 @@ body {
   color: #fff; font-size: 1.1rem; flex-shrink: 0;
 }
 
-.navbar-brand .text-warning { color: var(--orange) !important; }
-.navbar-brand span:last-child { color: var(--nav-brand-txt) !important; }
+/* AutoHub Brand Colors */
+.brand-auto {
+    color: #2563eb !important;
+}
+
+.brand-hub {
+    color: #f97316 !important;
+}
 
 #mainNav .nav-link {
   color: var(--nav-text) !important;
