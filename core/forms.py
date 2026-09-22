@@ -1,4 +1,5 @@
 from django import forms
+from django.core.exceptions import ValidationError
 from django.contrib.auth.forms import UserCreationForm
 from django.contrib.auth.models import User
 from firebase_admin import auth as firebase_auth
@@ -11,6 +12,11 @@ class SignUpForm(UserCreationForm):
     email = forms.EmailField(required=True, widget=forms.EmailInput(attrs={'placeholder': 'Email Address'}))
     phone_number = forms.CharField(max_length=20, required=True, widget=forms.TextInput(attrs={'placeholder': 'e.g. 09171234567'}))
     profile_picture = forms.ImageField(required=False)
+    role = forms.ChoiceField(
+        choices=UserProfile.ROLE_CHOICES,
+        widget=forms.HiddenInput(),
+        initial='customer',
+    )
 
     class Meta:
         model = User
@@ -45,9 +51,15 @@ class SignUpForm(UserCreationForm):
                 )
                 firebase_uid = fb_user.uid
             except Exception as e:
-                # Don't block signup if Firebase is unreachable —
-                # log it so you can reconcile later.
+                # Do not create a Django account when its Firebase account
+                # cannot be created. Otherwise the user can successfully
+                # sign up in Django but later fail Firebase authentication.
                 print(f"[Firebase] failed to create user for {user.email}: {e}")
+                raise ValidationError(
+                    "We couldn't finish creating your account. "
+                    "The email may already be registered or Firebase may be temporarily unavailable. "
+                    "Please try again or use a different email."
+                )
 
             user.save()
             UserProfile.objects.create(
@@ -57,6 +69,10 @@ class SignUpForm(UserCreationForm):
                 last_name=self.cleaned_data['last_name'],
                 phone_number=self.cleaned_data['phone_number'],
                 profile_picture=self.cleaned_data.get('profile_picture'),
+                role=self.cleaned_data['role'],
+                # New accounts start unverified; must confirm their email
+                # before posting, buying/renting, or messaging sellers.
+                email_verified=False,
             )
         return user
 

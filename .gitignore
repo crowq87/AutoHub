@@ -1,5 +1,8 @@
-node_modules
+node_modules/
 firebase/*.json
 .env
 venv/
 .venv/
+__pycache__/
+*.py[cod]
+*.class

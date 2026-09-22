@@ -7,12 +7,10 @@ from .models import VehicleListing, Notification, UserProfile
 @receiver(post_save, sender=VehicleListing)
 def notify_on_new_listing(sender, instance, created, **kwargs):
     if created:
-        # Notify all users about new listing (optional: only notify followers)
-        # For now, just a system notification to owner
         Notification.objects.create(
             recipient=instance.owner,
             notif_type='system',
-            title='Your listing is live!',
-            message=f'Your {instance.year} {instance.brand} {instance.model} has been posted successfully.',
+            title='Listing submitted for review',
+            message=f'Your {instance.year} {instance.brand} {instance.model} has been received and is pending admin approval before it goes live.',
             related_listing=instance,
         )

@@ -3,27 +3,24 @@ from django.contrib.auth.models import User
 
 
 class UserProfile(models.Model):
-    user = models.OneToOneField(
-        User,
-        on_delete=models.CASCADE,
-        related_name='profile'
-    )
+    ROLE_CHOICES = [
+        ('customer', 'Customer (Buy / Rent)'),
+        ('seller', 'Seller / Lister'),
+    ]
 
-    firebase_uid = models.CharField(
-        max_length=128,
-        unique=True,
-        blank=True,
-        null=True
-    )
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='profile')
+    role = models.CharField(max_length=10, choices=ROLE_CHOICES, default='customer')
+    firebase_uid = models.CharField(max_length=128, unique=True, blank=True, null=True)
 
-    first_name = models.CharField(max_length=100)
-    last_name = models.CharField(max_length=100)
-    phone_number = models.CharField(max_length=20)
-    profile_picture = models.ImageField(
-        upload_to='profile_pics/',
-        blank=True,
-        null=True
-    )
+    # Default True so existing accounts (created before this field existed) keep
+    # working without interruption. New signups explicitly set this to False in
+    # SignUpForm.save(), so only freshly created accounts must verify.
+    email_verified = models.BooleanField(default=True, verbose_name='Email Verified')
+
+    first_name = models.CharField(max_length=100, blank=True)
+    last_name = models.CharField(max_length=100, blank=True)
+    phone_number = models.CharField(max_length=20, blank=True)
+    profile_picture = models.ImageField(upload_to='profile_pics/', blank=True, null=True)
     bio = models.TextField(blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
@@ -143,7 +140,8 @@ class VehicleListing(models.Model):
 
     # ── Status ──
     is_active = models.BooleanField(default=True)
-    is_approved = models.BooleanField(default=True)
+    # New listings must be reviewed by an admin before they appear publicly.
+    is_approved = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -198,3 +196,76 @@ class ContactInquiry(models.Model):
 
     def __str__(self):
         return f"Inquiry from {self.sender.username} on {self.listing}"
+    
+class ChatConversation(models.Model):
+    """
+    One private conversation between one customer and one vehicle seller
+    about one specific vehicle listing.
+    """
+
+    listing = models.ForeignKey(
+        VehicleListing,
+        on_delete=models.CASCADE,
+        related_name='chat_conversations'
+    )
+
+    customer = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name='vehicle_chat_conversations'
+    )
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-updated_at']
+        constraints = [
+            models.UniqueConstraint(
+                fields=['listing', 'customer'],
+                name='unique_customer_vehicle_conversation'
+            )
+        ]
+
+    @property
+    def seller(self):
+        return self.listing.owner
+
+    def __str__(self):
+        return (
+            f"Chat: {self.customer.username} → "
+            f"{self.listing.owner.username} - {self.listing}"
+        )
+
+
+class ChatMessage(models.Model):
+    """
+    Individual messages inside a vehicle/customer conversation.
+    """
+
+    conversation = models.ForeignKey(
+        ChatConversation,
+        on_delete=models.CASCADE,
+        related_name='messages'
+    )
+
+    sender = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name='sent_vehicle_chat_messages'
+    )
+
+    message = models.TextField()
+
+    is_read = models.BooleanField(default=False)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['created_at']
+
+    def __str__(self):
+        return (
+            f"Message from {self.sender.username} "
+            f"in conversation {self.conversation.id}"
+        )

@@ -72,8 +72,9 @@
                 <td>₱{{ l.price }}</td>
                 <td class="small text-muted">{{ l.created_at|date:"M d, Y" }}</td>
                 <td>
-                  <a href="{% url 'admin_approve_listing' l.pk %}" class="btn btn-sm btn-success me-1">Approve</a>
-                  <a href="{% url 'admin_remove_listing' l.pk %}" class="btn btn-sm btn-outline-danger" onclick="return confirm('Remove listing?')">Remove</a>
+                  <a href="{% url 'admin_listing_review' l.pk %}" class="btn btn-sm btn-primary">
+                    <i class="bi bi-eye me-1"></i>Review
+                  </a>
                 </td>
               </tr>
               {% endfor %}
@@ -130,7 +131,11 @@
                 <td><span class="badge-listing-type badge-{{ l.listing_type }}">{{ l.get_listing_type_display }}</span></td>
                 <td>
                   <a href="{% url 'vehicle_detail' l.pk %}" class="btn btn-xs btn-outline-primary me-1">View</a>
-                  <a href="{% url 'admin_remove_listing' l.pk %}" class="btn btn-xs btn-outline-danger" onclick="return confirm('Remove?')">Remove</a>
+                  <form method="post" action="{% url 'admin_remove_listing' l.pk %}" class="d-inline" onsubmit="return confirm('Remove?')">
+                    {% csrf_token %}
+                    <input type="hidden" name="next" value="{% url 'admin_dashboard' %}">
+                    <button type="submit" class="btn btn-xs btn-outline-danger">Remove</button>
+                  </form>
                 </td>
               </tr>
               {% endfor %}

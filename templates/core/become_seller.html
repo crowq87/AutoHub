@@ -1,0 +1,53 @@
+{% extends 'core/base.html' %}
+{% block title %}Become a Seller — AutoHub{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+  <div class="row justify-content-center">
+    <div class="col-lg-7">
+      <div class="auth-card">
+        <div class="auth-header text-center">
+          <div class="auth-logo mb-3"><i class="bi bi-shop"></i></div>
+          <h3 class="fw-800">Become a Seller / Renter</h3>
+          <p class="text-muted">
+            Upgrade your account to start listing vehicles for sale or rent.
+          </p>
+        </div>
+
+        <div class="auth-body">
+          <ul class="list-unstyled mb-4">
+            <li class="mb-3 d-flex">
+              <i class="bi bi-check-circle-fill text-success me-2 mt-1"></i>
+              <span>Post vehicles for sale or rent, with photos and full specs.</span>
+            </li>
+            <li class="mb-3 d-flex">
+              <i class="bi bi-check-circle-fill text-success me-2 mt-1"></i>
+              <span>Manage your listings from your profile at any time.</span>
+            </li>
+            <li class="mb-3 d-flex">
+              <i class="bi bi-check-circle-fill text-success me-2 mt-1"></i>
+              <span>Receive inquiries directly from interested buyers and renters.</span>
+            </li>
+            <li class="mb-3 d-flex">
+              <i class="bi bi-info-circle-fill text-primary me-2 mt-1"></i>
+              <span>Every listing is reviewed by an admin before it goes public, to keep AutoHub trustworthy for buyers.</span>
+            </li>
+          </ul>
+
+          <form method="post">
+            {% csrf_token %}
+            <button type="submit" class="btn btn-warning w-100 btn-lg fw-600">
+              <i class="bi bi-shop me-2"></i>
+              Upgrade to Seller / Renter
+            </button>
+          </form>
+
+          <p class="text-center text-muted mt-3 mb-0" style="font-size: 0.9rem;">
+            You'll still be able to browse and inquire about vehicles as before.
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

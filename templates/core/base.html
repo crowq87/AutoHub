@@ -45,9 +45,11 @@
     <div class="collapse navbar-collapse" id="navbarNav">
       <ul class="navbar-nav me-auto">
         {% if user.is_authenticated %}
-          <li class="nav-item"><a class="nav-link" href="{% url 'dashboard' %}"><i class="bi bi-grid me-1"></i>Browse</a></li>
-          <li class="nav-item"><a class="nav-link" href="{% url 'post_vehicle' %}"><i class="bi bi-plus-circle me-1"></i>Post Vehicle</a></li>
-        {% endif %}
+  <li class="nav-item"><a class="nav-link" href="{% url 'dashboard' %}"><i class="bi bi-grid me-1"></i>Browse</a></li>
+  {% if user.profile.role == 'seller' %}
+  <li class="nav-item"><a class="nav-link" href="{% url 'post_vehicle' %}"><i class="bi bi-plus-circle me-1"></i>Post Vehicle</a></li>
+  {% endif %}
+{% endif %}
         <li class="nav-item"><a class="nav-link" href="{% url 'about' %}"><i class="bi bi-info-circle me-1"></i>About</a></li>
       </ul>
 
@@ -135,9 +137,14 @@
           <li><a href="{% url 'home' %}">Home</a></li>
           <li><a href="{% url 'about' %}">About</a></li>
           {% if user.is_authenticated %}
-            <li><a href="{% url 'dashboard' %}">Browse Vehicles</a></li>
-            <li><a href="{% url 'post_vehicle' %}">Post a Vehicle</a></li>
-          {% else %}
+  <li class="nav-item"><a class="nav-link" href="{% url 'dashboard' %}"><i class="bi bi-grid me-1"></i>Browse</a></li>
+  {% if user.profile.role == 'seller' %}
+  <li class="nav-item"><a class="nav-link" href="{% url 'post_vehicle' %}"><i class="bi bi-plus-circle me-1"></i>Post Vehicle</a></li>
+  {% else %}
+  <li class="nav-item"><a class="nav-link" href="{% url 'become_seller' %}"><i class="bi bi-shop me-1"></i>Become a Seller</a></li>
+  {% endif %}
+
+{% else %}
             <li><a href="{% url 'login' %}">Login</a></li>
             <li><a href="{% url 'signup' %}">Sign Up</a></li>
           {% endif %}

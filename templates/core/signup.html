@@ -12,9 +12,24 @@
             <h3 class="fw-800">Create Your Account</h3>
             <p class="text-muted">Join AutoHub for free — buy, sell, or rent vehicles!</p>
           </div>
+
+          <ul class="nav nav-pills nav-fill mb-4" id="roleTabs">
+            <li class="nav-item">
+              <button type="button" class="nav-link active" id="tab-customer" data-role="customer">
+                <i class="bi bi-person-fill me-1"></i>Customer <span class="d-none d-sm-inline">(Buy / Rent)</span>
+              </button>
+            </li>
+            <li class="nav-item">
+              <button type="button" class="nav-link" id="tab-seller" data-role="seller">
+                <i class="bi bi-shop me-1"></i>Seller <span class="d-none d-sm-inline">/ Lister</span>
+              </button>
+            </li>
+          </ul>
+
           <div class="auth-body">
             <form method="post" enctype="multipart/form-data" novalidate>
               {% csrf_token %}
+              {{ form.role }}
 
               <h6 class="fw-700 text-primary mb-3"><i class="bi bi-person me-2"></i>Personal Information</h6>
               <div class="row g-3 mb-3">
@@ -77,4 +92,28 @@
     </div>
   </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+  const tabCustomer = document.getElementById('tab-customer');
+  const tabSeller = document.getElementById('tab-seller');
+  const roleInput = document.getElementById('id_role');
+
+  function setRole(role) {
+    roleInput.value = role;
+    tabCustomer.classList.toggle('active', role === 'customer');
+    tabSeller.classList.toggle('active', role === 'seller');
+  }
+
+  tabCustomer.addEventListener('click', () => setRole('customer'));
+  tabSeller.addEventListener('click', () => setRole('seller'));
+
+  // Keep the previously chosen tab active if the form reloads after an error
+  if (roleInput.value === 'seller') {
+    setRole('seller');
+  }
+});
+</script>
 {% endblock %}

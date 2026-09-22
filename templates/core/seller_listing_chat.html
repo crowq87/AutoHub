@@ -1,0 +1,266 @@
+{% extends 'base.html' %}
+
+{% block title %}
+Customer Chats - {{ listing.year }} {{ listing.brand }} {{ listing.model }}
+{% endblock %}
+
+{% block content %}
+
+<div class="container py-4">
+
+    <div class="row">
+
+        <!-- Conversation List -->
+        <div class="col-lg-4 mb-3">
+
+            <div class="card shadow-sm border-0">
+
+                <div class="card-header">
+
+                    <h5 class="mb-1 fw-bold">
+                        Customer Messages
+                    </h5>
+
+                    <small class="text-muted">
+                        {{ listing.year }}
+                        {{ listing.brand }}
+                        {{ listing.model }}
+                    </small>
+
+                </div>
+
+                <div class="list-group list-group-flush">
+
+                    {% if conversations %}
+
+                        {% for conversation in conversations %}
+
+                            <a
+                                href="{% url 'seller_listing_chat' listing.pk %}?conversation={{ conversation.id }}"
+                                class="list-group-item list-group-item-action
+                                {% if selected_conversation and selected_conversation.id == conversation.id %}
+                                    active
+                                {% endif %}"
+                            >
+
+                                <div class="d-flex justify-content-between">
+
+                                    <strong>
+                                        {{ conversation.customer.get_full_name|default:conversation.customer.username }}
+                                    </strong>
+
+                                    {% if conversation.messages.last and not conversation.messages.last.is_read and conversation.messages.last.sender != request.user %}
+                                        <span class="badge bg-danger">
+                                            New
+                                        </span>
+                                    {% endif %}
+
+                                </div>
+
+                                <small class="
+                                    {% if selected_conversation and selected_conversation.id == conversation.id %}
+                                        text-white-50
+                                    {% else %}
+                                        text-muted
+                                    {% endif %}
+                                ">
+                                    {{ conversation.updated_at|date:"M d, Y h:i A" }}
+                                </small>
+
+                            </a>
+
+                        {% endfor %}
+
+                    {% else %}
+
+                        <div class="p-4 text-center text-muted">
+
+                            <i class="bi bi-chat-square-text fs-2"></i>
+
+                            <p class="mt-2 mb-0">
+                                No customer conversations yet.
+                            </p>
+
+                        </div>
+
+                    {% endif %}
+
+                </div>
+
+            </div>
+
+        </div>
+
+
+        <!-- Chat Area -->
+        <div class="col-lg-8">
+
+            {% if selected_conversation %}
+
+                <div class="card shadow-sm border-0">
+
+                    <div class="card-header">
+
+                        <div class="d-flex justify-content-between">
+
+                            <div>
+
+                                <strong>
+                                    {{ selected_conversation.customer.get_full_name|default:selected_conversation.customer.username }}
+                                </strong>
+
+                                <small class="d-block text-muted">
+                                    Customer interested in this vehicle
+                                </small>
+
+                            </div>
+
+                            <a
+                                href="{% url 'vehicle_detail' listing.pk %}"
+                                class="btn btn-outline-secondary btn-sm"
+                            >
+                                View Vehicle
+                            </a>
+
+                        </div>
+
+                    </div>
+
+
+                    <!-- Messages -->
+                    <div
+                        class="card-body"
+                        style="height: 450px; overflow-y: auto;"
+                    >
+
+                        {% for chat_message in selected_conversation.messages.all %}
+
+                            {% if chat_message.sender == request.user %}
+
+                                <!-- Seller Message -->
+                                <div class="d-flex justify-content-end mb-3">
+
+                                    <div
+                                        class="bg-primary text-white rounded-3 p-3"
+                                        style="max-width: 75%;"
+                                    >
+
+                                        {{ chat_message.message|linebreaksbr }}
+
+                                        <small class="d-block opacity-75 mt-1">
+                                            {{ chat_message.created_at|date:"M d, Y h:i A" }}
+                                        </small>
+
+                                    </div>
+
+                                </div>
+
+                            {% else %}
+
+                                <!-- Customer Message -->
+                                <div class="d-flex justify-content-start mb-3">
+
+                                    <div
+                                        class="bg-light border rounded-3 p-3"
+                                        style="max-width: 75%;"
+                                    >
+
+                                        <strong class="d-block mb-1">
+                                            Customer
+                                        </strong>
+
+                                        {{ chat_message.message|linebreaksbr }}
+
+                                        <small class="text-muted d-block mt-1">
+                                            {{ chat_message.created_at|date:"M d, Y h:i A" }}
+                                        </small>
+
+                                    </div>
+
+                                </div>
+
+                            {% endif %}
+
+                        {% empty %}
+
+                            <div class="text-center text-muted py-5">
+
+                                <i class="bi bi-chat-square-text fs-1"></i>
+
+                                <p class="mt-3">
+                                    No messages yet.
+                                </p>
+
+                            </div>
+
+                        {% endfor %}
+
+                    </div>
+
+
+                    <!-- Reply -->
+                    <div class="card-footer">
+
+                        <form
+                            method="POST"
+                            action="{% url 'seller_send_chat_message' selected_conversation.id %}"
+                        >
+
+                            {% csrf_token %}
+
+                            <div class="input-group">
+
+                                <textarea
+                                    name="message"
+                                    class="form-control"
+                                    rows="2"
+                                    placeholder="Reply to customer..."
+                                    required
+                                ></textarea>
+
+                                <button
+                                    type="submit"
+                                    class="btn btn-primary px-4"
+                                >
+                                    <i class="bi bi-send-fill"></i>
+                                    Reply
+                                </button>
+
+                            </div>
+
+                        </form>
+
+                    </div>
+
+                </div>
+
+            {% else %}
+
+                <div class="card shadow-sm border-0">
+
+                    <div class="card-body text-center py-5">
+
+                        <i class="bi bi-chat-dots fs-1 text-muted"></i>
+
+                        <h5 class="mt-3">
+                            Select a conversation
+                        </h5>
+
+                        <p class="text-muted">
+                            Choose a customer from the list to view
+                            their messages.
+                        </p>
+
+                    </div>
+
+                </div>
+
+            {% endif %}
+
+        </div>
+
+    </div>
+
+</div>
+
+{% endblock %}

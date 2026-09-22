@@ -1,0 +1,81 @@
+{% extends 'core/base.html' %}
+{% block title %}Verify Email — AutoHub{% endblock %}
+
+{% block content %}
+<div class="auth-page">
+  <div class="container">
+    <div class="row justify-content-center align-items-center min-vh-auth">
+      <div class="col-md-6 col-lg-5">
+        <div class="auth-card">
+          <div class="auth-header text-center">
+            <div class="auth-logo mb-3">
+              {% if email_verified %}
+                <i class="bi bi-patch-check-fill text-success"></i>
+              {% else %}
+                <i class="bi bi-envelope-check"></i>
+              {% endif %}
+            </div>
+
+            {% if email_verified %}
+              <h3 class="fw-800">Email Verified!</h3>
+              <p class="text-muted">
+                Your AutoHub account is verified. You can now post vehicles,
+                buy, rent, and contact sellers.
+              </p>
+            {% else %}
+              <h3 class="fw-800">Verify Your Email</h3>
+              <p class="text-muted">
+                We sent a verification link to
+                <strong>{{ request.user.email }}</strong>.
+              </p>
+            {% endif %}
+          </div>
+
+          <div class="auth-body">
+            {% if email_verified %}
+              <div class="alert alert-success">
+                <i class="bi bi-check-circle-fill me-2"></i>
+                Verification is complete. All marketplace actions are now available.
+              </div>
+
+              <div class="d-grid gap-2">
+                <a href="{% url 'dashboard' %}" class="btn btn-primary btn-lg fw-600">
+                  <i class="bi bi-grid me-2"></i>Continue Browsing
+                </a>
+                {% if user.profile.role == 'seller' %}
+                <a href="{% url 'post_vehicle' %}" class="btn btn-warning btn-lg fw-600">
+                  <i class="bi bi-plus-circle me-2"></i>Post a Vehicle
+                </a>
+                {% endif %}
+              </div>
+            {% else %}
+              <div class="alert alert-info">
+                <i class="bi bi-info-circle-fill me-2"></i>
+                You can browse AutoHub while your email is unverified.
+                Verification is required before posting, buying, renting,
+                or contacting a seller.
+              </div>
+
+              <form method="post" class="d-grid mb-3">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-primary btn-lg fw-600">
+                  <i class="bi bi-envelope-arrow-up me-2"></i>Resend Verification Email
+                </button>
+              </form>
+
+              <div class="d-grid gap-2">
+                <a href="{% url 'verify_email' %}" class="btn btn-outline-secondary fw-600">
+                  <i class="bi bi-arrow-clockwise me-2"></i>I've Verified — Check Again
+                </a>
+                <a href="{% url 'dashboard' %}" class="btn btn-link">
+                  Continue Browsing
+                </a>
+              </div>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

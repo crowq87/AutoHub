@@ -1,0 +1,1233 @@
+{% extends 'core/base.html' %}
+{% load static %}
+
+{% block title %}Review Listing - AutoHub{% endblock %}
+
+{% block content %}
+
+<div class="container py-4">
+
+    <!-- ============================= -->
+    <!-- HEADER -->
+    <!-- ============================= -->
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
+
+        <div>
+            <div class="d-flex align-items-center gap-2 mb-2">
+                <a href="{% url 'admin_dashboard' %}"
+                   class="btn btn-sm btn-outline-secondary">
+                    <i class="bi bi-arrow-left"></i>
+                    Back to Dashboard
+                </a>
+            </div>
+
+            <h2 class="fw-bold mb-1">
+                <i class="bi bi-shield-check text-primary"></i>
+                Review Vehicle Listing
+            </h2>
+
+            <p class="text-muted mb-0">
+                Carefully review the listing, uploaded content, vehicle information,
+                and poster account before approving it.
+            </p>
+        </div>
+
+        <div class="d-flex gap-2">
+
+            {% if listing.is_approved and listing.is_active %}
+                <span class="badge bg-success fs-6 px-3 py-2">
+                    <i class="bi bi-check-circle"></i>
+                    Approved / Live
+                </span>
+
+            {% elif not listing.is_active %}
+                <span class="badge bg-danger fs-6 px-3 py-2">
+                    <i class="bi bi-x-circle"></i>
+                    Removed
+                </span>
+
+            {% else %}
+                <span class="badge bg-warning text-dark fs-6 px-3 py-2">
+                    <i class="bi bi-hourglass-split"></i>
+                    Pending Review
+                </span>
+            {% endif %}
+
+        </div>
+
+    </div>
+
+
+    <!-- ============================= -->
+    <!-- ADMIN REVIEW WARNING -->
+    <!-- ============================= -->
+    {% if not listing.is_approved and listing.is_active %}
+
+    <div class="alert alert-warning border-0 shadow-sm mb-4">
+
+        <div class="d-flex gap-3">
+
+            <div class="fs-3">
+                <i class="bi bi-exclamation-triangle-fill"></i>
+            </div>
+
+            <div>
+
+                <h5 class="fw-bold mb-1">
+                    Listing requires review
+                </h5>
+
+                <p class="mb-0">
+                    Check the uploaded photos, vehicle information, description,
+                    documents, pricing, location, and seller account before
+                    approving this listing.
+                </p>
+
+            </div>
+
+        </div>
+
+    </div>
+
+    {% endif %}
+
+
+    <div class="row g-4">
+
+        <!-- ====================================================== -->
+        <!-- LEFT COLUMN -->
+        <!-- ====================================================== -->
+        <div class="col-lg-8">
+
+
+            <!-- ============================= -->
+            <!-- VEHICLE PHOTOS -->
+            <!-- ============================= -->
+            <div class="card border-0 shadow-sm mb-4">
+
+                <div class="card-header bg-transparent border-0 pt-4 px-4">
+
+                    <div class="d-flex justify-content-between align-items-center">
+
+                        <div>
+                            <h4 class="fw-bold mb-1">
+                                <i class="bi bi-images text-primary"></i>
+                                Vehicle Photos
+                            </h4>
+
+                            <p class="text-muted mb-0">
+                                Review every uploaded image for inappropriate,
+                                misleading, unrelated, or suspicious content.
+                            </p>
+                        </div>
+
+                        <span class="badge bg-light text-dark border">
+                            {{ listing.photos.all|length }} photo{{ listing.photos.all|length|pluralize }}
+                        </span>
+
+                    </div>
+
+                </div>
+
+
+                <div class="card-body px-4 pb-4">
+
+                    {% if listing.photos.all %}
+
+                    <div class="row g-3">
+
+                        {% for photo in listing.photos.all %}
+
+                        <div class="col-6 col-md-4">
+
+                            <div class="border rounded-3 overflow-hidden bg-light">
+
+                                <a href="{{ photo.image.url }}"
+                                   target="_blank"
+                                   rel="noopener noreferrer">
+
+                                    <img src="{{ photo.image.url }}"
+                                         alt="Vehicle photo {{ forloop.counter }}"
+                                         class="img-fluid w-100"
+                                         style="height: 220px; object-fit: cover;">
+
+                                </a>
+
+                                <div class="p-2 text-center small text-muted">
+
+                                    Photo {{ forloop.counter }}
+
+                                    <a href="{{ photo.image.url }}"
+                                       target="_blank"
+                                       rel="noopener noreferrer"
+                                       class="ms-1 text-decoration-none">
+
+                                        <i class="bi bi-box-arrow-up-right"></i>
+                                        Open full size
+
+                                    </a>
+
+                                </div>
+
+                            </div>
+
+                        </div>
+
+                        {% endfor %}
+
+                    </div>
+
+                    {% else %}
+
+                    <div class="text-center py-5 text-muted">
+
+                        <i class="bi bi-image fs-1"></i>
+
+                        <p class="mt-2 mb-0">
+                            No photos were uploaded for this listing.
+                        </p>
+
+                    </div>
+
+                    {% endif %}
+
+                </div>
+
+            </div>
+
+
+
+            <!-- ============================= -->
+            <!-- VEHICLE INFORMATION -->
+            <!-- ============================= -->
+            <div class="card border-0 shadow-sm mb-4">
+
+                <div class="card-header bg-transparent border-0 pt-4 px-4">
+
+                    <h4 class="fw-bold mb-1">
+                        <i class="bi bi-car-front-fill text-success"></i>
+                        Vehicle Information
+                    </h4>
+
+                    <p class="text-muted mb-0">
+                        Check whether the information belongs to the vehicle
+                        and is reasonable and consistent.
+                    </p>
+
+                </div>
+
+
+                <div class="card-body px-4 pb-4">
+
+                    <div class="row g-3">
+
+
+                        <!-- BRAND -->
+                        <div class="col-md-6">
+
+                            <div class="border rounded-3 p-3 h-100">
+
+                                <small class="text-muted d-block">
+                                    Brand
+                                </small>
+
+                                <strong>
+                                    {{ listing.brand|default:"Not provided" }}
+                                </strong>
+
+                            </div>
+
+                        </div>
+
+
+                        <!-- MODEL -->
+                        <div class="col-md-6">
+
+                            <div class="border rounded-3 p-3 h-100">
+
+                                <small class="text-muted d-block">
+                                    Model
+                                </small>
+
+                                <strong>
+                                    {{ listing.model|default:"Not provided" }}
+                                </strong>
+
+                            </div>
+
+                        </div>
+
+
+                        <!-- YEAR -->
+                        <div class="col-md-6">
+
+                            <div class="border rounded-3 p-3 h-100">
+
+                                <small class="text-muted d-block">
+                                    Year
+                                </small>
+
+                                <strong>
+                                    {{ listing.year|default:"Not provided" }}
+                                </strong>
+
+                            </div>
+
+                        </div>
+
+
+                        <!-- LISTING TYPE -->
+                        <div class="col-md-6">
+
+                            <div class="border rounded-3 p-3 h-100">
+
+                                <small class="text-muted d-block">
+                                    Listing Type
+                                </small>
+
+                                <strong>
+
+                                    {% if listing.listing_type == 'sale' %}
+                                        <span class="text-primary">
+                                            <i class="bi bi-tag"></i>
+                                            For Sale
+                                        </span>
+
+                                    {% elif listing.listing_type == 'rent' %}
+                                        <span class="text-success">
+                                            <i class="bi bi-calendar-check"></i>
+                                            For Rent
+                                        </span>
+
+                                    {% else %}
+                                        {{ listing.listing_type|default:"Not provided" }}
+                                    {% endif %}
+
+                                </strong>
+
+                            </div>
+
+                        </div>
+
+
+                        <!-- PRICE -->
+                        <div class="col-md-6">
+
+                            <div class="border rounded-3 p-3 h-100">
+
+                                <small class="text-muted d-block">
+                                    Price
+                                </small>
+
+                                <strong class="fs-5 text-primary">
+                                    ₱{{ listing.price|default:"0" }}
+                                </strong>
+
+                            </div>
+
+                        </div>
+
+
+                        <!-- ENGINE -->
+                        <div class="col-md-6">
+
+                            <div class="border rounded-3 p-3 h-100">
+
+                                <small class="text-muted d-block">
+                                    Engine
+                                </small>
+
+                                <strong>
+                                    {{ listing.engine|default:"Not provided" }}
+                                </strong>
+
+                            </div>
+
+                        </div>
+
+
+                        <!-- LOCATION -->
+                        <div class="col-12">
+
+                            <div class="border rounded-3 p-3">
+
+                                <small class="text-muted d-block mb-1">
+                                    <i class="bi bi-geo-alt"></i>
+                                    Pickup Location
+                                </small>
+
+                                <strong>
+                                    {{ listing.pickup_location|default:"Not provided" }}
+                                </strong>
+
+                            </div>
+
+                        </div>
+
+
+                        <!-- DELIVERY -->
+                        <div class="col-12">
+
+                            <div class="border rounded-3 p-3">
+
+                                <small class="text-muted d-block mb-1">
+                                    Delivery / Pickup Information
+                                </small>
+
+                                <div>
+                                    {{ listing.delivery|default:"Not provided"|linebreaksbr }}
+                                </div>
+
+                            </div>
+
+                        </div>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+
+
+            <!-- ============================= -->
+            <!-- DOCUMENT / VEHICLE DETAILS -->
+            <!-- ============================= -->
+            <div class="card border-0 shadow-sm mb-4">
+
+                <div class="card-header bg-transparent border-0 pt-4 px-4">
+
+                    <h4 class="fw-bold mb-1">
+                        <i class="bi bi-file-earmark-text text-primary"></i>
+                        Vehicle Documents & Details
+                    </h4>
+
+                    <p class="text-muted mb-0">
+                        Check whether the provided vehicle information appears
+                        relevant to the listing.
+                    </p>
+
+                </div>
+
+
+                <div class="card-body px-4 pb-4">
+
+                    <div class="row g-3">
+
+
+                        <!-- OR / CR -->
+                        <div class="col-md-6">
+
+                            <div class="border rounded-3 p-3 h-100">
+
+                                <small class="text-muted d-block">
+                                    OR / CR
+                                </small>
+
+                                <strong>
+                                    {{ listing.or_cr|default:"Not provided" }}
+                                </strong>
+
+                            </div>
+
+                        </div>
+
+
+                        <!-- INSURANCE -->
+                        <div class="col-md-6">
+
+                            <div class="border rounded-3 p-3 h-100">
+
+                                <small class="text-muted d-block">
+                                    Insurance
+                                </small>
+
+                                <strong>
+                                    {{ listing.insurance|default:"Not provided" }}
+                                </strong>
+
+                            </div>
+
+                        </div>
+
+
+                        <!-- PLATE -->
+                        <div class="col-md-6">
+
+                            <div class="border rounded-3 p-3 h-100">
+
+                                <small class="text-muted d-block">
+                                    Plate Number
+                                </small>
+
+                                <strong>
+                                    {{ listing.plate_number|default:"Not provided" }}
+                                </strong>
+
+                            </div>
+
+                        </div>
+
+
+                        <!-- SPECIFICATIONS -->
+                        <div class="col-12">
+
+                            <div class="border rounded-3 p-3">
+
+                                <small class="text-muted d-block mb-2">
+                                    Specifications
+                                </small>
+
+                                <div>
+                                    {{ listing.specifications|default:"Not provided"|linebreaksbr }}
+                                </div>
+
+                            </div>
+
+                        </div>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+
+
+            <!-- ============================= -->
+            <!-- FEATURES -->
+            <!-- ============================= -->
+            <div class="card border-0 shadow-sm mb-4">
+
+                <div class="card-header bg-transparent border-0 pt-4 px-4">
+
+                    <h4 class="fw-bold mb-1">
+                        <i class="bi bi-list-check text-success"></i>
+                        Vehicle Features
+                    </h4>
+
+                </div>
+
+
+                <div class="card-body px-4 pb-4">
+
+                    {% if listing.features %}
+
+                        <div class="d-flex flex-wrap gap-2">
+
+                            {% for feature in listing.features %}
+
+                                <span class="badge rounded-pill bg-light text-dark border px-3 py-2">
+                                    <i class="bi bi-check-circle text-success"></i>
+                                    {{ feature }}
+                                </span>
+
+                            {% endfor %}
+
+                        </div>
+
+                    {% else %}
+
+                        <span class="text-muted">
+                            No additional features provided.
+                        </span>
+
+                    {% endif %}
+
+                </div>
+
+            </div>
+
+
+
+            <!-- ============================= -->
+            <!-- DESCRIPTION -->
+            <!-- ============================= -->
+            <div class="card border-0 shadow-sm mb-4">
+
+                <div class="card-header bg-transparent border-0 pt-4 px-4">
+
+                    <h4 class="fw-bold mb-1">
+                        <i class="bi bi-card-text text-primary"></i>
+                        Full Description
+                    </h4>
+
+                </div>
+
+
+                <div class="card-body px-4 pb-4">
+
+                    {% if listing.description %}
+
+                        <div class="border rounded-3 p-4 bg-light">
+
+                            {{ listing.description|linebreaksbr }}
+
+                        </div>
+
+                    {% else %}
+
+                        <div class="text-muted">
+                            No description was provided.
+                        </div>
+
+                    {% endif %}
+
+                </div>
+
+            </div>
+
+
+
+            <!-- ============================= -->
+            <!-- REVIEW CHECKLIST -->
+            <!-- ============================= -->
+            <div class="card border-0 shadow-sm mb-4">
+
+                <div class="card-header bg-transparent border-0 pt-4 px-4">
+
+                    <h4 class="fw-bold mb-1">
+                        <i class="bi bi-clipboard-check text-warning"></i>
+                        Admin Review Checklist
+                    </h4>
+
+                    <p class="text-muted mb-0">
+                        Review these items before approving the listing.
+                    </p>
+
+                </div>
+
+
+                <div class="card-body px-4 pb-4">
+
+                    <div class="form-check mb-3">
+
+                        <input class="form-check-input"
+                               type="checkbox"
+                               id="checkPhotos">
+
+                        <label class="form-check-label"
+                               for="checkPhotos">
+
+                            Photos are relevant to the vehicle and do not contain
+                            explicit, inappropriate, or unrelated content.
+
+                        </label>
+
+                    </div>
+
+
+                    <div class="form-check mb-3">
+
+                        <input class="form-check-input"
+                               type="checkbox"
+                               id="checkInformation">
+
+                        <label class="form-check-label"
+                               for="checkInformation">
+
+                            Vehicle information appears relevant and consistent
+                            with the listing.
+
+                        </label>
+
+                    </div>
+
+
+                    <div class="form-check mb-3">
+
+                        <input class="form-check-input"
+                               type="checkbox"
+                               id="checkDescription">
+
+                        <label class="form-check-label"
+                               for="checkDescription">
+
+                            Description does not contain inappropriate,
+                            misleading, or unrelated information.
+
+                        </label>
+
+                    </div>
+
+
+                    <div class="form-check mb-3">
+
+                        <input class="form-check-input"
+                               type="checkbox"
+                               id="checkAccount">
+
+                        <label class="form-check-label"
+                               for="checkAccount">
+
+                            Poster account has been reviewed.
+
+                        </label>
+
+                    </div>
+
+
+                    <div class="form-check">
+
+                        <input class="form-check-input"
+                               type="checkbox"
+                               id="checkContact">
+
+                        <label class="form-check-label"
+                               for="checkContact">
+
+                            Contact information appears appropriate for a
+                            vehicle listing.
+
+                        </label>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+        </div>
+
+
+
+        <!-- ====================================================== -->
+        <!-- RIGHT COLUMN -->
+        <!-- ====================================================== -->
+        <div class="col-lg-4">
+
+
+            <!-- ============================= -->
+            <!-- POSTER ACCOUNT -->
+            <!-- ============================= -->
+            <div class="card border-0 shadow-sm mb-4">
+
+                <div class="card-header bg-transparent border-0 pt-4 px-4">
+
+                    <h4 class="fw-bold mb-1">
+                        <i class="bi bi-person-circle text-primary"></i>
+                        Poster Account
+                    </h4>
+
+                    <p class="text-muted mb-0">
+                        Review the account that submitted this listing.
+                    </p>
+
+                </div>
+
+
+                <div class="card-body px-4 pb-4">
+
+
+                    <!-- NAME -->
+                    <div class="mb-3">
+
+                        <small class="text-muted d-block">
+                            Name
+                        </small>
+
+                        <strong class="fs-5">
+
+                            {% if owner_profile.first_name or owner_profile.last_name %}
+
+                                {{ owner_profile.first_name }}
+                                {{ owner_profile.last_name }}
+
+                            {% else %}
+
+                                {{ listing.owner.username }}
+
+                            {% endif %}
+
+                        </strong>
+
+                    </div>
+
+
+                    <!-- USERNAME -->
+                    <div class="mb-3">
+
+                        <small class="text-muted d-block">
+                            Username
+                        </small>
+
+                        <strong>
+                            @{{ listing.owner.username }}
+                        </strong>
+
+                    </div>
+
+
+                    <!-- EMAIL -->
+                    <div class="mb-3">
+
+                        <small class="text-muted d-block">
+                            Email
+                        </small>
+
+                        <div>
+
+                            {{ listing.owner.email }}
+
+                            {% if owner_email_verified %}
+
+                                <span class="badge bg-success ms-1">
+                                    <i class="bi bi-patch-check-fill"></i>
+                                    Verified
+                                </span>
+
+                            {% else %}
+
+                                <span class="badge bg-warning text-dark ms-1">
+                                    <i class="bi bi-exclamation-circle"></i>
+                                    Unverified
+                                </span>
+
+                            {% endif %}
+
+                        </div>
+
+                    </div>
+
+
+                    <!-- PHONE -->
+                    <div class="mb-3">
+
+                        <small class="text-muted d-block">
+                            Phone
+                        </small>
+
+                        <strong>
+                            {{ owner_profile.phone_number|default:"Not provided" }}
+                        </strong>
+
+                    </div>
+
+
+                    <!-- ROLE -->
+                    <div class="mb-3">
+
+                        <small class="text-muted d-block">
+                            Account Role
+                        </small>
+
+                        <span class="badge bg-primary">
+
+                            {{ owner_profile.get_role_display }}
+
+                        </span>
+
+                    </div>
+
+
+                    <!-- JOIN DATE -->
+                    <div class="mb-3">
+
+                        <small class="text-muted d-block">
+                            Account Created
+                        </small>
+
+                        <strong>
+                            {{ listing.owner.date_joined|date:"M d, Y" }}
+                        </strong>
+
+                    </div>
+
+
+                    <!-- BIO -->
+                    <div class="mb-3">
+
+                        <small class="text-muted d-block">
+                            Bio
+                        </small>
+
+                        {% if owner_profile.bio %}
+
+                            <div class="border rounded-3 p-3 bg-light">
+                                {{ owner_profile.bio|linebreaksbr }}
+                            </div>
+
+                        {% else %}
+
+                            <span class="text-muted">
+                                No bio provided.
+                            </span>
+
+                        {% endif %}
+
+                    </div>
+
+
+                    <!-- ACCOUNT STATS -->
+                    <div class="row g-2">
+
+                        <div class="col-6">
+
+                            <div class="border rounded-3 text-center p-3">
+
+                                <div class="fs-4 fw-bold text-success">
+                                    {{ owner_listing_count }}
+                                </div>
+
+                                <small class="text-muted">
+                                    Active Listings
+                                </small>
+
+                            </div>
+
+                        </div>
+
+
+                        <div class="col-6">
+
+                            <div class="border rounded-3 text-center p-3">
+
+                                <div class="fs-4 fw-bold text-danger">
+                                    {{ owner_removed_count }}
+                                </div>
+
+                                <small class="text-muted">
+                                    Removed
+                                </small>
+
+                            </div>
+
+                        </div>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+
+
+            <!-- ============================= -->
+            <!-- PREVIOUS LISTING WARNING -->
+            <!-- ============================= -->
+            {% if owner_removed_count > 0 %}
+
+            <div class="alert alert-danger shadow-sm">
+
+                <div class="d-flex gap-2">
+
+                    <i class="bi bi-exclamation-octagon-fill fs-4"></i>
+
+                    <div>
+
+                        <strong>
+                            Previous listings were removed
+                        </strong>
+
+                        <p class="mb-0 mt-1 small">
+
+                            This account has {{ owner_removed_count }}
+                            previously removed listing{{ owner_removed_count|pluralize }}.
+                            Review the seller's history carefully before approving.
+
+                        </p>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+            {% endif %}
+
+
+
+            <!-- ============================= -->
+            <!-- OTHER LISTINGS -->
+            <!-- ============================= -->
+            <div class="card border-0 shadow-sm mb-4">
+
+                <div class="card-header bg-transparent border-0 pt-4 px-4">
+
+                    <h5 class="fw-bold mb-1">
+                        <i class="bi bi-car-front"></i>
+                        Other Listings
+                    </h5>
+
+                    <p class="text-muted small mb-0">
+                        Review the poster's listing history.
+                    </p>
+
+                </div>
+
+
+                <div class="card-body px-4 pb-4">
+
+                    {% if owner_other_listings %}
+
+                        <div class="list-group list-group-flush">
+
+                            {% for other in owner_other_listings %}
+
+                                <div class="list-group-item px-0">
+
+                                    <div class="d-flex justify-content-between gap-2">
+
+                                        <div>
+
+                                            <strong>
+                                                {{ other.year }}
+                                                {{ other.brand }}
+                                                {{ other.model }}
+                                            </strong>
+
+                                            <div class="small text-muted">
+
+                                                ₱{{ other.price }}
+
+                                                ·
+
+                                                {% if other.listing_type == 'sale' %}
+                                                    For Sale
+                                                {% else %}
+                                                    For Rent
+                                                {% endif %}
+
+                                            </div>
+
+                                        </div>
+
+
+                                        <div>
+
+                                            {% if not other.is_active %}
+
+                                                <span class="badge bg-danger">
+                                                    Removed
+                                                </span>
+
+                                            {% elif other.is_approved %}
+
+                                                <span class="badge bg-success">
+                                                    Live
+                                                </span>
+
+                                            {% else %}
+
+                                                <span class="badge bg-warning text-dark">
+                                                    Pending
+                                                </span>
+
+                                            {% endif %}
+
+                                        </div>
+
+                                    </div>
+
+                                </div>
+
+                            {% endfor %}
+
+                        </div>
+
+                    {% else %}
+
+                        <div class="text-muted text-center py-3">
+
+                            <i class="bi bi-car-front fs-3"></i>
+
+                            <div class="mt-2">
+                                No other listings from this account.
+                            </div>
+
+                        </div>
+
+                    {% endif %}
+
+                </div>
+
+            </div>
+
+
+
+            <!-- ============================= -->
+            <!-- PLATFORM RESPONSIBILITY -->
+            <!-- ============================= -->
+            <div class="alert alert-info shadow-sm">
+
+                <div class="d-flex gap-2">
+
+                    <i class="bi bi-info-circle-fill fs-4"></i>
+
+                    <div>
+
+                        <strong>
+                            AutoHub platform scope
+                        </strong>
+
+                        <p class="small mb-0 mt-1">
+
+                            AutoHub provides vehicle information and communication
+                            between users. AutoHub does not process payments,
+                            deposits, purchases, rentals, or other transactions.
+                            Users should independently inspect and verify a vehicle
+                            before making any agreement with a seller.
+
+                        </p>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+
+
+            <!-- ============================= -->
+            <!-- PREVIEW -->
+            <!-- ============================= -->
+            <div class="d-grid mb-4">
+
+                <a href="{% url 'vehicle_detail' listing.pk %}"
+                   target="_blank"
+                   rel="noopener noreferrer"
+                   class="btn btn-outline-primary">
+
+                    <i class="bi bi-eye"></i>
+                    Preview Public Listing
+
+                </a>
+
+            </div>
+
+
+
+            <!-- ============================= -->
+            <!-- ADMIN ACTIONS -->
+            <!-- ============================= -->
+            {% if listing.is_active and not listing.is_approved %}
+
+            <div class="card border-0 shadow-sm">
+
+                <div class="card-header bg-transparent border-0 pt-4 px-4">
+
+                    <h5 class="fw-bold mb-1">
+                        <i class="bi bi-shield-check"></i>
+                        Admin Decision
+                    </h5>
+
+                    <p class="text-muted small mb-0">
+                        This decision will affect whether the listing becomes
+                        publicly visible.
+                    </p>
+
+                </div>
+
+
+                <div class="card-body px-4 pb-4">
+
+
+                    <!-- APPROVE -->
+                    <form method="POST"
+                          action="{% url 'admin_approve_listing' listing.pk %}"
+                          class="mb-3">
+
+                        {% csrf_token %}
+
+                        <input type="hidden"
+                               name="next"
+                               value="{% url 'admin_dashboard' %}">
+
+                        <button type="submit"
+                                class="btn btn-success w-100 py-2">
+
+                            <i class="bi bi-check-circle-fill"></i>
+                            Approve & Publish
+
+                        </button>
+
+                    </form>
+
+
+                    <!-- REJECT -->
+                    <form method="POST"
+                          action="{% url 'admin_remove_listing' listing.pk %}"
+                          onsubmit="return confirm('Are you sure you want to reject/remove this listing?');">
+
+                        {% csrf_token %}
+
+                        <input type="hidden"
+                               name="next"
+                               value="{% url 'admin_dashboard' %}">
+
+                        <button type="submit"
+                                class="btn btn-outline-danger w-100 py-2">
+
+                            <i class="bi bi-x-circle-fill"></i>
+                            Reject Listing
+
+                        </button>
+
+                    </form>
+
+
+                    <div class="text-center mt-3">
+
+                        <small class="text-muted">
+                            The seller will receive a notification
+                            about the decision.
+                        </small>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+            {% endif %}
+
+
+        </div>
+
+    </div>
+
+</div>
+
+
+<!-- ====================================== -->
+<!-- SMALL PAGE-SPECIFIC STYLES -->
+<!-- ====================================== -->
+
+<style>
+
+    .admin-review-card {
+        border-radius: 16px;
+    }
+
+    .card {
+        border-radius: 16px;
+    }
+
+    .card-header {
+        border-radius: 16px 16px 0 0 !important;
+    }
+
+    .form-check-input {
+        cursor: pointer;
+    }
+
+    .form-check-label {
+        cursor: pointer;
+    }
+
+    .list-group-item {
+        background: transparent;
+    }
+
+    @media (max-width: 767px) {
+
+        .card-body {
+            padding-left: 1rem !important;
+            padding-right: 1rem !important;
+        }
+
+    }
+
+</style>
+
+{% endblock %}
