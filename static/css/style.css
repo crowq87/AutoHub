@@ -598,3 +598,341 @@ h2 + .badge-listing-type, .d-flex .badge-listing-type { position: static; displa
   .carousel-control-prev { left: 4px; }
   .carousel-control-next { right: 4px; }
 }
+
+/* =========================================================
+   AUTOHUB VEHICLE COMPARISON
+   Isolated styles
+   ========================================================= */
+
+
+/* Comparison bar */
+
+.autohub-compare-bar {
+    position: fixed;
+
+    left: 0;
+    right: 0;
+    bottom: -150px;
+
+    z-index: 1050;
+
+    padding: 12px 20px;
+
+    background: var(--bg-card);
+
+    border-top: 1px solid var(--border);
+
+    box-shadow: 0 -6px 25px rgba(0, 0, 0, 0.12);
+
+    transition: bottom 0.25s ease;
+}
+
+.autohub-compare-bar.show {
+    bottom: 0;
+}
+
+
+.autohub-compare-inner {
+    max-width: 1200px;
+
+    margin: 0 auto;
+
+    display: flex;
+    align-items: center;
+
+    gap: 18px;
+}
+
+
+.autohub-compare-info {
+    display: flex;
+    align-items: center;
+
+    gap: 10px;
+
+    flex-shrink: 0;
+}
+
+
+.autohub-compare-icon {
+    width: 40px;
+    height: 40px;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    border-radius: 10px;
+
+    background: rgba(37, 99, 235, 0.1);
+
+    color: var(--blue-mid);
+
+    font-size: 1.15rem;
+}
+
+
+.autohub-compare-info strong {
+    display: block;
+
+    color: var(--text-primary);
+
+    font-size: 0.85rem;
+}
+
+
+.autohub-compare-info small {
+    display: block;
+
+    margin-top: 2px;
+
+    color: var(--text-muted);
+
+    font-size: 0.7rem;
+}
+
+
+/* Selected vehicles */
+
+.autohub-compare-selected {
+    min-width: 0;
+
+    flex: 1;
+
+    display: flex;
+    align-items: center;
+
+    gap: 7px;
+
+    overflow-x: auto;
+}
+
+
+.autohub-compare-chip {
+    flex-shrink: 0;
+
+    display: flex;
+    align-items: center;
+
+    gap: 5px;
+
+    max-width: 190px;
+
+    padding: 6px 8px 6px 10px;
+
+    border-radius: 999px;
+
+    background: var(--gray-light);
+
+    border: 1px solid var(--border);
+
+    color: var(--text-primary);
+
+    font-size: 0.7rem;
+}
+
+
+.autohub-compare-chip span {
+    overflow: hidden;
+
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+
+.autohub-compare-chip button {
+    width: 20px;
+    height: 20px;
+
+    padding: 0;
+
+    border: 0;
+
+    border-radius: 50%;
+
+    background: transparent;
+
+    color: var(--text-muted);
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    cursor: pointer;
+}
+
+
+.autohub-compare-chip button:hover {
+    background: rgba(0, 0, 0, 0.08);
+
+    color: var(--text-primary);
+}
+
+
+/* Actions */
+
+.autohub-compare-actions {
+    display: flex;
+    align-items: center;
+
+    gap: 7px;
+
+    flex-shrink: 0;
+}
+
+
+/* Modal */
+
+.autohub-compare-modal {
+    background: var(--bg-card);
+
+    color: var(--text-primary);
+
+    border: 1px solid var(--border);
+
+    border-radius: 14px;
+
+    overflow: hidden;
+}
+
+
+.autohub-compare-table-wrap {
+    width: 100%;
+
+    overflow-x: auto;
+}
+
+
+.autohub-comparison-table {
+    min-width: 700px;
+
+    color: var(--text-primary);
+
+    vertical-align: middle;
+}
+
+
+.autohub-comparison-table th,
+.autohub-comparison-table td {
+    padding: 13px 15px;
+
+    border-color: var(--border);
+
+    white-space: nowrap;
+}
+
+
+.autohub-comparison-table thead th {
+    background: var(--gray-light);
+
+    border-bottom: 2px solid var(--border);
+}
+
+
+.autohub-comparison-table tbody tr:nth-child(even) {
+    background: rgba(127, 127, 127, 0.035);
+}
+
+
+.comparison-label {
+    width: 180px;
+
+    min-width: 180px;
+
+    font-weight: 700;
+
+    color: var(--text-primary);
+
+    background: var(--gray-light);
+}
+
+
+.comparison-vehicle {
+    min-width: 210px;
+
+    color: var(--text-primary);
+}
+
+
+.comparison-vehicle-name {
+    font-weight: 750;
+
+    white-space: normal;
+
+    line-height: 1.35;
+}
+
+
+.comparison-vehicle-price {
+    margin-top: 5px;
+
+    color: var(--orange);
+
+    font-size: 1rem;
+
+    font-weight: 800;
+}
+
+
+/* Dark mode */
+
+[data-bs-theme="dark"] .autohub-compare-bar {
+    box-shadow: 0 -8px 25px rgba(0, 0, 0, 0.35);
+}
+
+
+[data-bs-theme="dark"] .autohub-compare-chip {
+    background: rgba(255, 255, 255, 0.05);
+}
+
+
+[data-bs-theme="dark"] .autohub-compare-chip button:hover {
+    background: rgba(255, 255, 255, 0.1);
+}
+
+
+/* Mobile */
+
+@media (max-width: 767.98px) {
+
+    .autohub-compare-bar {
+        padding: 10px 12px;
+    }
+
+
+    .autohub-compare-inner {
+        gap: 10px;
+
+        flex-wrap: wrap;
+    }
+
+
+    .autohub-compare-info {
+        width: 100%;
+    }
+
+
+    .autohub-compare-selected {
+        order: 3;
+
+        width: 100%;
+
+        flex-basis: 100%;
+    }
+
+
+    .autohub-compare-actions {
+        margin-left: auto;
+    }
+
+
+    .autohub-compare-chip {
+        max-width: 145px;
+    }
+
+
+    .autohub-comparison-table {
+        min-width: 650px;
+    }
+
+}

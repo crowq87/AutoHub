@@ -1,5 +1,7 @@
 from django.db import models
 from django.contrib.auth.models import User
+from django.core.validators import MinValueValidator, MaxValueValidator
+from django.db.models import Avg
 
 
 class UserProfile(models.Model):
@@ -23,6 +25,15 @@ class UserProfile(models.Model):
     profile_picture = models.ImageField(upload_to='profile_pics/', blank=True, null=True)
     bio = models.TextField(blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
+
+    def average_rating(self):
+        """Average of all ratings this user has received as a seller/renter, or None if unrated."""
+        result = self.user.received_ratings.aggregate(avg=Avg('score'))['avg']
+        return round(result, 1) if result is not None else None
+
+    def rating_count(self):
+        return self.user.received_ratings.count()
+
 
 class VehicleListing(models.Model):
     LISTING_TYPE_CHOICES = [
@@ -131,12 +142,85 @@ class VehicleListing(models.Model):
     has_insurance = models.BooleanField(default=False, verbose_name='With Insurance')
     plate_number = models.CharField(max_length=20, blank=True, help_text='Optional')
 
+    # ── Vehicle History ──
+    PREVIOUS_OWNER_CHOICES = [
+        ('1', '1 Owner'),
+        ('2', '2 Owners'),
+        ('3', '3 Owners'),
+        ('4+', '4+ Owners'),
+        ('unknown', 'Unknown'),
+    ]
+
+    HISTORY_CHOICES = [
+        ('no', 'No'),
+        ('yes', 'Yes'),
+        ('unknown', 'Not Sure'),
+    ]
+
+    MODIFICATION_CHOICES = [
+        ('stock', 'Stock / Original'),
+        ('modified', 'Modified'),
+    ]
+
+    SERVICE_RECORD_CHOICES = [
+        ('available', 'Available'),
+        ('not_available', 'Not Available'),
+    ]
+
+    previous_owners = models.CharField(
+        max_length=10,
+        choices=PREVIOUS_OWNER_CHOICES,
+        default='unknown',
+        blank=True
+    )
+
+    accident_history = models.CharField(
+        max_length=10,
+        choices=HISTORY_CHOICES,
+        default='no',
+        blank=True
+    )
+
+    flood_damage = models.CharField(
+        max_length=10,
+        choices=HISTORY_CHOICES,
+        default='no',
+        blank=True
+    )
+
+    modification_status = models.CharField(
+        max_length=10,
+        choices=MODIFICATION_CHOICES,
+        default='stock',
+        blank=True
+    )
+
+    service_records = models.CharField(
+        max_length=20,
+        choices=SERVICE_RECORD_CHOICES,
+        default='not_available',
+        blank=True
+    )
+
+    reason_for_selling = models.CharField(
+        max_length=255,
+        blank=True
+    )
+
     # ── Pricing & Location ──
     price = models.DecimalField(max_digits=12, decimal_places=2)
     price_unit = models.CharField(max_length=20, default='total', help_text='e.g. /day, /month, total')
+
+    price_negotiable = models.BooleanField(
+        default=False,
+        verbose_name='Price Negotiable'
+    )
+
     description = models.TextField()
     pickup_location = models.CharField(max_length=255)
     delivery_available = models.BooleanField(default=False)
+
+    
 
     # ── Status ──
     is_active = models.BooleanField(default=True)
@@ -151,6 +235,14 @@ class VehicleListing(models.Model):
     def get_main_photo(self):
         photo = self.photos.first()
         return photo.image.url if photo else None
+
+    def average_rating(self):
+        """Average of the rental-experience ratings left on this specific vehicle listing."""
+        result = self.vehicle_ratings.aggregate(avg=Avg('score'))['avg']
+        return round(result, 1) if result is not None else None
+
+    def rating_count(self):
+        return self.vehicle_ratings.count()
 
     class Meta:
         ordering = ['-created_at']
@@ -269,3 +361,97 @@ class ChatMessage(models.Model):
             f"Message from {self.sender.username} "
             f"in conversation {self.conversation.id}"
         )
+
+
+class SellerRating(models.Model):
+    """
+    A trust rating left by a customer for a seller/renter's ACCOUNT, based on
+    their overall experience dealing with that person (communication,
+    honesty, reliability, etc). One rating per (seller, rater) pair — the
+    rater can update their existing rating instead of leaving a new one.
+    """
+
+    seller = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name='received_ratings',
+    )
+
+    rater = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name='given_seller_ratings',
+    )
+
+    # Optional context: which listing prompted this rating. Kept even if the
+    # listing itself is later removed, so the review text still makes sense.
+    listing = models.ForeignKey(
+        VehicleListing,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='seller_ratings_from_this_listing',
+    )
+
+    score = models.PositiveSmallIntegerField(
+        validators=[MinValueValidator(1), MaxValueValidator(5)],
+        help_text='1 (poor) to 5 (excellent)',
+    )
+    comment = models.TextField(blank=True)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-created_at']
+        constraints = [
+            models.UniqueConstraint(
+                fields=['seller', 'rater'],
+                name='unique_seller_rating_per_rater',
+            )
+        ]
+
+    def __str__(self):
+        return f"{self.rater.username} rated {self.seller.username}: {self.score}/5"
+
+
+class VehicleRating(models.Model):
+    """
+    A rating left by a renter/buyer for a specific vehicle LISTING, based on
+    their experience with that particular vehicle (condition, accuracy of
+    the listing, how the rental went, etc). One rating per (listing, rater)
+    pair — the rater can update their existing rating.
+    """
+
+    listing = models.ForeignKey(
+        VehicleListing,
+        on_delete=models.CASCADE,
+        related_name='vehicle_ratings',
+    )
+
+    rater = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name='given_vehicle_ratings',
+    )
+
+    score = models.PositiveSmallIntegerField(
+        validators=[MinValueValidator(1), MaxValueValidator(5)],
+        help_text='1 (poor) to 5 (excellent)',
+    )
+    comment = models.TextField(blank=True)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-created_at']
+        constraints = [
+            models.UniqueConstraint(
+                fields=['listing', 'rater'],
+                name='unique_vehicle_rating_per_rater',
+            )
+        ]
+
+    def __str__(self):
+        return f"{self.rater.username} rated {self.listing}: {self.score}/5"

@@ -1,0 +1,18 @@
+<div class="col-6 col-md-3">
+
+    <div
+        class="feature-toggle{% if field.value %} active{% endif %}"
+        data-field="{{ field.name }}"
+    >
+
+        <i class="bi bi-{{ icon }} feature-icon-toggle"></i>
+
+        <span class="feature-label-toggle">
+            {{ label }}
+        </span>
+
+        {{ field }}
+
+    </div>
+
+</div>

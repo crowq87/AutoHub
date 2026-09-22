@@ -107,9 +107,54 @@
               <span class="ms-auto small text-muted">{{ vehicle.created_at|timesince }} ago</span>
             </div>
 
-            <a href="{% url 'vehicle_detail' vehicle.pk %}" class="btn btn-primary w-100 mt-3 fw-600">
-              <i class="bi bi-eye me-2"></i>View Details
-            </a>
+            <div class="d-flex gap-2 mt-3">
+
+    <button
+        type="button"
+        class="btn btn-outline-primary flex-shrink-0 autohub-compare-btn"
+        data-compare-id="{{ vehicle.pk }}"
+        data-compare-name="{{ vehicle.year }} {{ vehicle.brand }} {{ vehicle.model }}"
+        data-compare-price="₱{{ vehicle.price|floatformat:0 }}"
+        data-compare-year="{{ vehicle.year }}"
+        data-compare-brand="{{ vehicle.brand }}"
+        data-compare-model="{{ vehicle.model }}"
+        data-compare-body="{{ vehicle.get_body_type_display }}"
+        data-compare-condition="{{ vehicle.get_condition_display }}"
+        data-compare-fuel="{{ vehicle.get_fuel_type_display }}"
+        data-compare-transmission="{{ vehicle.get_transmission_display }}"
+        data-compare-drive="{{ vehicle.get_drive_type_display|default:'Not specified' }}"
+        data-compare-engine="{{ vehicle.engine_size|default:'Not specified' }}"
+        data-compare-hp="{% if vehicle.horsepower %}{{ vehicle.horsepower }} hp{% else %}Not specified{% endif %}"
+        data-compare-mileage="{% if vehicle.mileage %}{{ vehicle.mileage|floatformat:0 }} km{% else %}Not specified{% endif %}"
+        data-compare-seats="{{ vehicle.num_seats }}"
+        data-compare-doors="{{ vehicle.num_doors }}"
+        data-compare-color="{{ vehicle.color }}"
+        data-compare-location="{{ vehicle.pickup_location }}"
+        data-compare-ac="{% if vehicle.has_ac %}Yes{% else %}No{% endif %}"
+        data-compare-dashcam="{% if vehicle.has_dashcam %}Yes{% else %}No{% endif %}"
+        data-compare-abs="{% if vehicle.has_abs %}Yes{% else %}No{% endif %}"
+        data-compare-airbags="{% if vehicle.has_airbags %}Yes{% else %}No{% endif %}"
+        data-compare-camera="{% if vehicle.has_backup_camera %}Yes{% else %}No{% endif %}"
+        data-compare-gps="{% if vehicle.has_gps %}Yes{% else %}No{% endif %}"
+        data-compare-bluetooth="{% if vehicle.has_bluetooth %}Yes{% else %}No{% endif %}"
+        data-compare-sunroof="{% if vehicle.has_sunroof %}Yes{% else %}No{% endif %}"
+        data-compare-leather="{% if vehicle.has_leather_seats %}Yes{% else %}No{% endif %}"
+        data-compare-delivery="{% if vehicle.delivery_available %}Yes{% else %}No{% endif %}"
+        data-compare-url="{% url 'vehicle_detail' vehicle.pk %}"
+    >
+        <i class="bi bi-check2-square"></i>
+        Compare
+    </button>
+
+    <a
+        href="{% url 'vehicle_detail' vehicle.pk %}"
+        class="btn btn-primary flex-grow-1 fw-600"
+    >
+        <i class="bi bi-eye me-2"></i>
+        View Details
+    </a>
+
+</div>
           </div>
         </div>
       </div>
@@ -134,4 +179,591 @@
     {% endif %}
   </div>
 </div>
+
+<!-- =========================================================
+     VEHICLE COMPARISON BAR
+     ========================================================= -->
+
+<div
+    id="autohubCompareBar"
+    class="autohub-compare-bar"
+    aria-hidden="true"
+>
+    <div class="autohub-compare-inner">
+
+        <div class="autohub-compare-info">
+            <div class="autohub-compare-icon">
+                <i class="bi bi-columns-gap"></i>
+            </div>
+
+            <div>
+                <strong>Compare Vehicles</strong>
+                <small>
+                    <span id="autohubCompareCount">0</span>
+                    of 3 vehicles selected
+                </small>
+            </div>
+        </div>
+
+        <div
+            id="autohubCompareSelected"
+            class="autohub-compare-selected"
+        ></div>
+
+        <div class="autohub-compare-actions">
+
+            <button
+                type="button"
+                id="autohubClearCompare"
+                class="btn btn-sm btn-outline-secondary"
+            >
+                Clear
+            </button>
+
+            <button
+                type="button"
+                id="autohubOpenCompare"
+                class="btn btn-primary btn-sm"
+                disabled
+            >
+                <i class="bi bi-columns-gap me-1"></i>
+                Compare
+            </button>
+
+        </div>
+
+    </div>
+</div>
+
+
+<!-- =========================================================
+     VEHICLE COMPARISON MODAL
+     ========================================================= -->
+
+<div
+    class="modal fade"
+    id="autohubCompareModal"
+    tabindex="-1"
+    aria-hidden="true"
+>
+    <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
+
+        <div class="modal-content autohub-compare-modal">
+
+            <div class="modal-header">
+
+                <div>
+                    <h5 class="modal-title fw-700 mb-1">
+                        <i class="bi bi-columns-gap me-2"></i>
+                        Compare Vehicles
+                    </h5>
+
+                    <small class="text-muted">
+                        Compare the selected vehicles side by side.
+                    </small>
+                </div>
+
+                <button
+                    type="button"
+                    class="btn-close"
+                    data-bs-dismiss="modal"
+                    aria-label="Close"
+                ></button>
+
+            </div>
+
+            <div class="modal-body p-0">
+
+                <div
+                    id="autohubCompareTable"
+                    class="autohub-compare-table-wrap"
+                ></div>
+
+            </div>
+
+        </div>
+    </div>
+</div>
+
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+
+    const MAX_COMPARE = 3;
+
+    let selectedVehicles = [];
+
+    const compareBar = document.getElementById('autohubCompareBar');
+    const compareCount = document.getElementById('autohubCompareCount');
+    const compareSelected = document.getElementById('autohubCompareSelected');
+
+    const openCompare = document.getElementById('autohubOpenCompare');
+    const clearCompare = document.getElementById('autohubClearCompare');
+
+    const compareTable = document.getElementById('autohubCompareTable');
+
+    const compareButtons = document.querySelectorAll(
+        '.autohub-compare-btn'
+    );
+
+
+    /* =========================================================
+       GET VEHICLE DATA
+       ========================================================= */
+
+    function getVehicleData(button) {
+
+        return {
+            id: button.dataset.compareId,
+
+            name: button.dataset.compareName,
+            price: button.dataset.comparePrice,
+
+            year: button.dataset.compareYear,
+            brand: button.dataset.compareBrand,
+            model: button.dataset.compareModel,
+
+            body: button.dataset.compareBody,
+            condition: button.dataset.compareCondition,
+
+            fuel: button.dataset.compareFuel,
+            transmission: button.dataset.compareTransmission,
+            drive: button.dataset.compareDrive,
+
+            engine: button.dataset.compareEngine,
+            hp: button.dataset.compareHp,
+            mileage: button.dataset.compareMileage,
+
+            seats: button.dataset.compareSeats,
+            doors: button.dataset.compareDoors,
+            color: button.dataset.compareColor,
+
+            location: button.dataset.compareLocation,
+
+            ac: button.dataset.compareAc,
+            dashcam: button.dataset.compareDashcam,
+
+            abs: button.dataset.compareAbs,
+            airbags: button.dataset.compareAirbags,
+            camera: button.dataset.compareCamera,
+
+            gps: button.dataset.compareGps,
+            bluetooth: button.dataset.compareBluetooth,
+            sunroof: button.dataset.compareSunroof,
+            leather: button.dataset.compareLeather,
+
+            delivery: button.dataset.compareDelivery,
+
+            url: button.dataset.compareUrl
+        };
+    }
+
+
+    /* =========================================================
+       UPDATE BUTTON
+       ========================================================= */
+
+    function updateButton(button, selected) {
+
+        if (selected) {
+
+            button.classList.remove('btn-outline-primary');
+
+            button.classList.add('btn-primary');
+
+            button.innerHTML =
+                '<i class="bi bi-check-square-fill me-1"></i>' +
+                'Selected';
+
+        } else {
+
+            button.classList.remove('btn-primary');
+
+            button.classList.add('btn-outline-primary');
+
+            button.innerHTML =
+                '<i class="bi bi-check2-square me-1"></i>' +
+                'Compare';
+        }
+    }
+
+
+    /* =========================================================
+       UPDATE COMPARISON BAR
+       ========================================================= */
+
+    function updateCompareBar() {
+
+        const count = selectedVehicles.length;
+
+        compareCount.textContent = count;
+
+        openCompare.disabled = count < 2;
+
+        if (count > 0) {
+
+            compareBar.classList.add('show');
+
+            compareBar.setAttribute('aria-hidden', 'false');
+
+        } else {
+
+            compareBar.classList.remove('show');
+
+            compareBar.setAttribute('aria-hidden', 'true');
+        }
+
+
+        compareSelected.innerHTML = '';
+
+        selectedVehicles.forEach(function (vehicle) {
+
+            const item = document.createElement('div');
+
+            item.className = 'autohub-compare-chip';
+
+            item.innerHTML = `
+                <span>${vehicle.name}</span>
+                <button
+                    type="button"
+                    data-remove-id="${vehicle.id}"
+                    aria-label="Remove ${vehicle.name}"
+                >
+                    <i class="bi bi-x"></i>
+                </button>
+            `;
+
+            compareSelected.appendChild(item);
+        });
+
+
+        compareSelected
+            .querySelectorAll('[data-remove-id]')
+            .forEach(function (button) {
+
+                button.addEventListener('click', function () {
+
+                    removeVehicle(button.dataset.removeId);
+
+                });
+
+            });
+    }
+
+
+    /* =========================================================
+       ADD VEHICLE
+       ========================================================= */
+
+    function addVehicle(button) {
+
+        const id = button.dataset.compareId;
+
+        if (
+            selectedVehicles.some(function (vehicle) {
+                return vehicle.id === id;
+            })
+        ) {
+            return;
+        }
+
+
+        if (selectedVehicles.length >= MAX_COMPARE) {
+
+            alert('You can compare up to 3 vehicles at a time.');
+
+            return;
+        }
+
+
+        selectedVehicles.push(
+            getVehicleData(button)
+        );
+
+        updateButton(button, true);
+
+        updateCompareBar();
+    }
+
+
+    /* =========================================================
+       REMOVE VEHICLE
+       ========================================================= */
+
+    function removeVehicle(id) {
+
+        selectedVehicles =
+            selectedVehicles.filter(function (vehicle) {
+                return vehicle.id !== id;
+            });
+
+
+        compareButtons.forEach(function (button) {
+
+            if (button.dataset.compareId === id) {
+
+                updateButton(button, false);
+
+            }
+
+        });
+
+
+        updateCompareBar();
+    }
+
+
+    /* =========================================================
+       CLEAR
+       ========================================================= */
+
+    function clearAll() {
+
+        selectedVehicles = [];
+
+        compareButtons.forEach(function (button) {
+
+            updateButton(button, false);
+
+        });
+
+        updateCompareBar();
+    }
+
+
+    /* =========================================================
+       COMPARE BUTTONS
+       ========================================================= */
+
+    compareButtons.forEach(function (button) {
+
+        button.addEventListener('click', function () {
+
+            const id = button.dataset.compareId;
+
+            const alreadySelected =
+                selectedVehicles.some(function (vehicle) {
+                    return vehicle.id === id;
+                });
+
+
+            if (alreadySelected) {
+
+                removeVehicle(id);
+
+            } else {
+
+                addVehicle(button);
+
+            }
+
+        });
+
+    });
+
+
+    /* =========================================================
+       CLEAR BUTTON
+       ========================================================= */
+
+    clearCompare.addEventListener('click', function () {
+
+        clearAll();
+
+    });
+
+
+    /* =========================================================
+       CREATE COMPARISON TABLE
+       ========================================================= */
+
+    function createComparisonTable() {
+
+        if (selectedVehicles.length < 2) {
+            return;
+        }
+
+
+        const rows = [
+
+            ['Price', 'price'],
+            ['Year', 'year'],
+            ['Brand', 'brand'],
+            ['Model', 'model'],
+            ['Body Type', 'body'],
+            ['Condition', 'condition'],
+
+            ['Fuel Type', 'fuel'],
+            ['Transmission', 'transmission'],
+            ['Drive Type', 'drive'],
+
+            ['Engine', 'engine'],
+            ['Horsepower', 'hp'],
+            ['Mileage', 'mileage'],
+
+            ['Seats', 'seats'],
+            ['Doors', 'doors'],
+            ['Color', 'color'],
+
+            ['Location', 'location'],
+
+            ['Air Conditioning', 'ac'],
+            ['Dashcam', 'dashcam'],
+
+            ['ABS', 'abs'],
+            ['Airbags', 'airbags'],
+            ['Backup Camera', 'camera'],
+
+            ['GPS', 'gps'],
+            ['Bluetooth', 'bluetooth'],
+            ['Sunroof', 'sunroof'],
+            ['Leather Seats', 'leather'],
+
+            ['Delivery Available', 'delivery']
+        ];
+
+
+        let html = `
+            <div class="table-responsive">
+
+                <table class="table autohub-comparison-table mb-0">
+
+                    <thead>
+
+                        <tr>
+
+                            <th class="comparison-label">
+                                Specification
+                            </th>
+        `;
+
+
+        selectedVehicles.forEach(function (vehicle) {
+
+            html += `
+                <th class="comparison-vehicle">
+
+                    <div class="comparison-vehicle-name">
+                        ${vehicle.name}
+                    </div>
+
+                    <div class="comparison-vehicle-price">
+                        ${vehicle.price}
+                    </div>
+
+                </th>
+            `;
+
+        });
+
+
+        html += `
+                        </tr>
+
+                    </thead>
+
+                    <tbody>
+        `;
+
+
+        rows.forEach(function (row) {
+
+            html += `
+                <tr>
+
+                    <th class="comparison-label">
+                        ${row[0]}
+                    </th>
+            `;
+
+
+            selectedVehicles.forEach(function (vehicle) {
+
+                html += `
+                    <td>
+                        ${vehicle[row[1]] || 'Not specified'}
+                    </td>
+                `;
+
+            });
+
+
+            html += `
+                </tr>
+            `;
+
+        });
+
+
+        html += `
+                    <tr>
+
+                        <th class="comparison-label">
+                            Actions
+                        </th>
+        `;
+
+
+        selectedVehicles.forEach(function (vehicle) {
+
+            html += `
+                <td>
+
+                    <a
+                        href="${vehicle.url}"
+                        class="btn btn-primary btn-sm w-100"
+                    >
+                        <i class="bi bi-eye me-1"></i>
+                        View Vehicle
+                    </a>
+
+                </td>
+            `;
+
+        });
+
+
+        html += `
+                    </tr>
+
+                    </tbody>
+
+                </table>
+
+            </div>
+        `;
+
+
+        compareTable.innerHTML = html;
+    }
+
+
+    /* =========================================================
+       OPEN COMPARISON
+       ========================================================= */
+
+    openCompare.addEventListener('click', function () {
+
+        if (selectedVehicles.length < 2) {
+            return;
+        }
+
+
+        createComparisonTable();
+
+
+        const modalElement =
+            document.getElementById('autohubCompareModal');
+
+        const modal =
+            bootstrap.Modal.getOrCreateInstance(modalElement);
+
+        modal.show();
+
+    });
+
+});
+</script>
+
 {% endblock %}
+

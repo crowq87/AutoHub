@@ -89,6 +89,22 @@ urlpatterns = [
         name='post_vehicle'
     ),
 
+    # =========================================================
+    # RATINGS
+    # =========================================================
+
+    path(
+        'sellers/<int:user_id>/rate/',
+        views.rate_seller,
+        name='rate_seller'
+    ),
+
+    path(
+        'vehicles/<int:pk>/rate/',
+        views.rate_vehicle,
+        name='rate_vehicle'
+    ),
+
     path(
         'vehicles/<int:pk>/edit/',
         views.edit_vehicle,

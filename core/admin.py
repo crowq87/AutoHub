@@ -1,5 +1,13 @@
 from django.contrib import admin
-from .models import UserProfile, VehicleListing, VehiclePhoto, Notification, ContactInquiry
+from .models import (
+    UserProfile,
+    VehicleListing,
+    VehiclePhoto,
+    Notification,
+    ContactInquiry,
+    SellerRating,
+    VehicleRating,
+)
 
 
 @admin.register(UserProfile)
@@ -40,3 +48,17 @@ class NotificationAdmin(admin.ModelAdmin):
 class ContactInquiryAdmin(admin.ModelAdmin):
     list_display = ['sender', 'listing', 'created_at']
     search_fields = ['sender__username', 'listing__brand']
+
+
+@admin.register(SellerRating)
+class SellerRatingAdmin(admin.ModelAdmin):
+    list_display = ['seller', 'rater', 'score', 'listing', 'created_at']
+    list_filter = ['score']
+    search_fields = ['seller__username', 'rater__username']
+
+
+@admin.register(VehicleRating)
+class VehicleRatingAdmin(admin.ModelAdmin):
+    list_display = ['listing', 'rater', 'score', 'created_at']
+    list_filter = ['score']
+    search_fields = ['rater__username', 'listing__brand', 'listing__model']

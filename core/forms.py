@@ -3,7 +3,7 @@ from django.core.exceptions import ValidationError
 from django.contrib.auth.forms import UserCreationForm
 from django.contrib.auth.models import User
 from firebase_admin import auth as firebase_auth
-from .models import UserProfile, VehicleListing, VehiclePhoto, ContactInquiry
+from .models import UserProfile, VehicleListing, VehiclePhoto, ContactInquiry, SellerRating, VehicleRating
 
 
 class SignUpForm(UserCreationForm):
@@ -112,6 +112,13 @@ class VehicleListingForm(forms.ModelForm):
             'is_registered', 'has_insurance', 'plate_number',
             # Pricing & Location
             'price', 'price_unit', 'description', 'pickup_location', 'delivery_available',
+            'previous_owners',
+'accident_history',
+'flood_damage',
+'modification_status',
+'service_records',
+'reason_for_selling',
+'price_negotiable',
         ]
         widgets = {
             'description':      forms.Textarea(attrs={'rows': 4, 'placeholder': 'Describe the vehicle condition, features, history, etc.'}),
@@ -159,6 +166,53 @@ class ContactInquiryForm(forms.ModelForm):
                 'placeholder': 'Write your message to the seller/owner...',
                 'class': 'form-control'
             })
+        }
+
+
+STAR_CHOICES = [
+    (5, '5 - Excellent'),
+    (4, '4 - Good'),
+    (3, '3 - Average'),
+    (2, '2 - Poor'),
+    (1, '1 - Very Poor'),
+]
+
+
+class SellerRatingForm(forms.ModelForm):
+    score = forms.ChoiceField(
+        choices=STAR_CHOICES,
+        widget=forms.RadioSelect,
+        label='Your rating of this seller/renter',
+    )
+
+    class Meta:
+        model = SellerRating
+        fields = ['score', 'comment']
+        widgets = {
+            'comment': forms.Textarea(attrs={
+                'rows': 3,
+                'class': 'form-control',
+                'placeholder': "Share your experience with this seller/renter (optional)",
+            }),
+        }
+
+
+class VehicleRatingForm(forms.ModelForm):
+    score = forms.ChoiceField(
+        choices=STAR_CHOICES,
+        widget=forms.RadioSelect,
+        label='Your rating of this vehicle',
+    )
+
+    class Meta:
+        model = VehicleRating
+        fields = ['score', 'comment']
+        widgets = {
+            'comment': forms.Textarea(attrs={
+                'rows': 3,
+                'class': 'form-control',
+                'placeholder': "How was your experience renting this vehicle? (optional)",
+            }),
         }
 
 

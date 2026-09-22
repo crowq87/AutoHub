@@ -18,10 +18,21 @@ from .models import (
     ContactInquiry,
     ChatConversation,
     ChatMessage,
+    SellerRating,
+    VehicleRating,
 )
 from django.db import IntegrityError
 from django.urls import reverse
-from .forms import SignUpForm, ProfileEditForm, VehicleListingForm, VehiclePhotoForm, ContactInquiryForm, SearchFilterForm
+from .forms import (
+    SignUpForm,
+    ProfileEditForm,
+    VehicleListingForm,
+    VehiclePhotoForm,
+    ContactInquiryForm,
+    SearchFilterForm,
+    SellerRatingForm,
+    VehicleRatingForm,
+)
 from firebase_admin import auth as firebase_auth
 from .firebase_utils import firebase_verify_password, send_firebase_verification_email, firebase_is_email_verified
 from functools import wraps
@@ -359,6 +370,36 @@ def vehicle_detail(request, pk):
             messages.success(request, "Your inquiry has been sent!")
             return redirect('vehicle_detail', pk=pk)
 
+    # ── Seller/renter account ratings (trust ratings on the person) ──
+    seller_ratings = SellerRating.objects.filter(
+        seller=listing.owner
+    ).select_related('rater')[:20]
+
+    user_seller_rating = None
+    seller_rating_form = SellerRatingForm()
+
+    # ── Per-vehicle ratings (only meaningful for rental listings) ──
+    vehicle_ratings = []
+    user_vehicle_rating = None
+    vehicle_rating_form = VehicleRatingForm()
+
+    if request.user.is_authenticated and request.user != listing.owner:
+        user_seller_rating = SellerRating.objects.filter(
+            seller=listing.owner, rater=request.user
+        ).first()
+        if user_seller_rating:
+            seller_rating_form = SellerRatingForm(instance=user_seller_rating)
+
+        if listing.listing_type == 'rent':
+            user_vehicle_rating = VehicleRating.objects.filter(
+                listing=listing, rater=request.user
+            ).first()
+            if user_vehicle_rating:
+                vehicle_rating_form = VehicleRatingForm(instance=user_vehicle_rating)
+
+    if listing.listing_type == 'rent':
+        vehicle_ratings = listing.vehicle_ratings.select_related('rater')[:20]
+
     return render(
         request,
         'core/vehicle_detail.html',
@@ -369,6 +410,12 @@ def vehicle_detail(request, pk):
             'conversations': conversations,
             'selected_conversation': selected_conversation,
             'chat_messages': chat_messages,
+            'seller_ratings': seller_ratings,
+            'user_seller_rating': user_seller_rating,
+            'seller_rating_form': seller_rating_form,
+            'vehicle_ratings': vehicle_ratings,
+            'user_vehicle_rating': user_vehicle_rating,
+            'vehicle_rating_form': vehicle_rating_form,
         }
     )
 
@@ -459,6 +506,111 @@ def send_chat_message(request, pk):
     return redirect(
         f"{reverse('vehicle_detail', kwargs={'pk': listing.pk})}#vehicle-chat"
     )
+
+
+# ─── RATE SELLER / RENTER ACCOUNT ─────────────────────────────────────────────
+@login_required
+@email_verified_required
+@require_POST
+def rate_seller(request, user_id):
+    """
+    Leave (or update) a trust rating on a seller/renter's ACCOUNT. Anyone
+    logged-in and verified can rate any seller except themselves; submitting
+    again simply updates their existing rating (one rating per rater/seller).
+    """
+    seller = get_object_or_404(User, pk=user_id)
+
+    if seller == request.user:
+        messages.error(request, "You can't rate your own account.")
+        return redirect('dashboard')
+
+    listing = None
+    listing_id = request.POST.get('listing_id')
+    if listing_id:
+        listing = VehicleListing.objects.filter(pk=listing_id).first()
+
+    existing = SellerRating.objects.filter(seller=seller, rater=request.user).first()
+    form = SellerRatingForm(request.POST, instance=existing)
+
+    if form.is_valid():
+        rating = form.save(commit=False)
+        rating.seller = seller
+        rating.rater = request.user
+        if listing:
+            rating.listing = listing
+        rating.save()
+
+        messages.success(
+            request,
+            f"Thanks — your rating for {seller.first_name or seller.username} has been saved."
+        )
+
+        if not existing:
+            Notification.objects.create(
+                recipient=seller,
+                notif_type='system',
+                title='You received a new rating',
+                message=(
+                    f"{request.user.get_full_name() or request.user.username} "
+                    f"rated you {rating.score}/5 as a seller/renter."
+                ),
+                related_listing=listing,
+            )
+    else:
+        messages.error(request, "Please choose a rating from 1 to 5 stars.")
+
+    next_url = request.POST.get('next')
+    if listing:
+        return redirect(f"{reverse('vehicle_detail', kwargs={'pk': listing.pk})}#reviews")
+    return redirect(next_url or 'dashboard')
+
+
+# ─── RATE A RENTAL VEHICLE LISTING ─────────────────────────────────────────────
+@login_required
+@email_verified_required
+@require_POST
+def rate_vehicle(request, pk):
+    """
+    Leave (or update) a rating on a specific FOR-RENT vehicle listing, based
+    on the renter's experience with that particular vehicle. Kept separate
+    from the seller/renter account rating above.
+    """
+    listing = get_object_or_404(VehicleListing, pk=pk, is_active=True)
+
+    if listing.listing_type != 'rent':
+        messages.error(request, "Only rental vehicles can be rated for the rental experience.")
+        return redirect('vehicle_detail', pk=pk)
+
+    if listing.owner == request.user:
+        messages.error(request, "You can't rate your own vehicle listing.")
+        return redirect('vehicle_detail', pk=pk)
+
+    existing = VehicleRating.objects.filter(listing=listing, rater=request.user).first()
+    form = VehicleRatingForm(request.POST, instance=existing)
+
+    if form.is_valid():
+        rating = form.save(commit=False)
+        rating.listing = listing
+        rating.rater = request.user
+        rating.save()
+
+        messages.success(request, "Thanks — your rating for this vehicle has been saved.")
+
+        if not existing:
+            Notification.objects.create(
+                recipient=listing.owner,
+                notif_type='system',
+                title='Your vehicle received a new rating',
+                message=(
+                    f"{request.user.get_full_name() or request.user.username} rated the "
+                    f"{listing.year} {listing.brand} {listing.model} {rating.score}/5."
+                ),
+                related_listing=listing,
+            )
+    else:
+        messages.error(request, "Please choose a rating from 1 to 5 stars.")
+
+    return redirect(f"{reverse('vehicle_detail', kwargs={'pk': pk})}#reviews")
 
 
 # ─── POST / EDIT VEHICLE ──────────────────────────────────────────────────────

@@ -1,408 +1,2209 @@
 {% extends 'core/base.html' %}
-{% block title %}{% if editing %}Edit{% else %}Post{% endif %} Vehicle — AutoHub{% endblock %}
+
+{% block title %}
+{% if editing %}Edit{% else %}Post{% endif %} Vehicle — AutoHub
+{% endblock %}
 
 {% block extra_css %}
+
 <style>
-.feature-toggle {
-  border: 2px solid #e9ebe5;
-  border-radius: 12px;
-  padding: 0.85rem 1rem;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  cursor: pointer;
-  transition: all 0.18s;
-  background: #f9fafb;
-  user-select: none;
-  position: relative;
+
+/* =========================================================
+   PAGE
+========================================================= */
+
+.vehicle-form-page {
+    max-width: 1100px;
+    margin: 0 auto;
 }
-.feature-toggle:hover { border-color: #f97316; background: #fff7ed; }
-.feature-toggle.active { border-color: #2563eb; background: #dbeafe; }
-.feature-toggle.active .feature-icon-toggle { color: #2563eb; }
-.feature-toggle.active .feature-label-toggle { color: #1d4ed8; font-weight: 600; }
-.feature-icon-toggle  { font-size: 1.2rem; color: #9ca3af; flex-shrink: 0; }
-.feature-label-toggle { font-size: 0.8rem; font-weight: 500; color: #374151; flex: 1; }
-.feature-toggle input[type="checkbox"] { position: absolute; opacity: 0; width: 0; height: 0; }
+
+.post-card {
+    background: var(--bs-body-bg, #ffffff);
+    border-radius: 20px;
+    overflow: hidden;
+    box-shadow: 0 8px 35px rgba(0, 0, 0, 0.08);
+}
+
+
+/* =========================================================
+   HEADER
+========================================================= */
+
+.post-header {
+    padding: 28px 30px;
+    background: linear-gradient(135deg, #2563eb, #1d4ed8);
+    color: white;
+    display: flex;
+    align-items: center;
+    gap: 18px;
+}
+
+.post-header-icon {
+    width: 58px;
+    height: 58px;
+    border-radius: 16px;
+    background: rgba(255,255,255,0.16);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.55rem;
+    flex-shrink: 0;
+}
+
+.post-header h3 {
+    font-weight: 800;
+}
+
+.post-header p {
+    opacity: 0.9;
+}
+
+
+/* =========================================================
+   FORM SECTIONS
+========================================================= */
+
+.form-section {
+    padding: 28px 30px;
+    border-bottom: 1px solid #e5e7eb;
+}
+
+.section-title {
+    font-size: 1rem;
+    font-weight: 800;
+    margin-bottom: 20px;
+    color: #1f2937;
+    display: flex;
+    align-items: center;
+}
+
+.section-description {
+    color: #6b7280;
+    font-size: 0.85rem;
+    margin-top: -12px;
+    margin-bottom: 20px;
+}
+
+.form-label {
+    color: #374151;
+    font-size: 0.88rem;
+    margin-bottom: 7px;
+}
+
+.form-control,
+.form-select {
+    min-height: 46px;
+    border-radius: 10px;
+    border: 1px solid #d1d5db;
+}
+
+.form-control:focus,
+.form-select:focus {
+    border-color: #2563eb;
+    box-shadow: 0 0 0 0.2rem rgba(37, 99, 235, 0.12);
+}
+
+textarea.form-control {
+    min-height: 150px;
+    resize: vertical;
+}
+
+
+/* =========================================================
+   FEATURE TOGGLES
+========================================================= */
+
+.feature-toggle {
+    border: 2px solid #e5e7eb;
+    border-radius: 12px;
+    padding: 0.85rem 1rem;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    cursor: pointer;
+    transition: all 0.18s ease;
+    background: #f9fafb;
+    user-select: none;
+    position: relative;
+    min-height: 58px;
+}
+
+.feature-toggle:hover {
+    border-color: #f97316;
+    background: #fff7ed;
+    transform: translateY(-1px);
+}
+
+.feature-toggle.active {
+    border-color: #2563eb;
+    background: #eff6ff;
+}
+
+.feature-toggle.active .feature-icon-toggle {
+    color: #2563eb;
+}
+
+.feature-toggle.active .feature-label-toggle {
+    color: #1d4ed8;
+    font-weight: 700;
+}
+
+.feature-icon-toggle {
+    font-size: 1.2rem;
+    color: #9ca3af;
+    flex-shrink: 0;
+}
+
+.feature-label-toggle {
+    font-size: 0.8rem;
+    font-weight: 500;
+    color: #374151;
+    flex: 1;
+}
+
+.feature-toggle input[type="checkbox"] {
+    position: absolute;
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+
+/* =========================================================
+   PHOTO UPLOAD
+========================================================= */
+
+.photo-upload-area {
+    border: 2px dashed #cbd5e1;
+    border-radius: 16px;
+    padding: 40px 20px;
+    text-align: center;
+    background: #f8fafc;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.photo-upload-area:hover,
+.photo-upload-area.dragover {
+    border-color: #2563eb;
+    background: #eff6ff;
+}
+
+.photo-upload-area i {
+    font-size: 3rem;
+}
+
+.photo-upload-area p {
+    color: #374151;
+}
+
+.photo-help {
+    font-size: 0.78rem;
+    color: #6b7280;
+}
+
+.photo-counter {
+    font-size: 0.82rem;
+    font-weight: 700;
+    color: #2563eb;
+    margin-top: 10px;
+}
+
+
+/* =========================================================
+   PHOTO PREVIEWS
+========================================================= */
+
+.preview-img-wrap,
+.existing-photo-thumb {
+    width: 130px;
+    height: 100px;
+    border-radius: 12px;
+    overflow: hidden;
+    position: relative;
+    border: 2px solid #e5e7eb;
+    background: #f3f4f6;
+}
+
+.preview-img,
+.existing-photo-thumb img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.main-badge {
+    position: absolute;
+    top: 7px;
+    left: 7px;
+    background: #2563eb;
+    color: white;
+    padding: 3px 8px;
+    border-radius: 20px;
+    font-size: 0.68rem;
+    font-weight: 700;
+}
+
+.remove-preview {
+    position: absolute;
+    top: 5px;
+    right: 5px;
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    border: none;
+    background: rgba(0,0,0,0.65);
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+}
+
+.delete-photo-btn {
+    position: absolute;
+    top: 5px;
+    right: 5px;
+    color: white;
+    background: rgba(220,38,38,0.9);
+    border-radius: 50%;
+    width: 26px;
+    height: 26px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-decoration: none;
+}
+
+
+/* =========================================================
+   LISTING PREVIEW
+========================================================= */
+
+.preview-card {
+    border: 2px solid #e5e7eb;
+    border-radius: 18px;
+    overflow: hidden;
+    background: #fff;
+}
+
+.preview-header {
+    padding: 15px 18px;
+    background: #f8fafc;
+    border-bottom: 1px solid #e5e7eb;
+    font-weight: 800;
+}
+
+.preview-main-image {
+    width: 100%;
+    height: 280px;
+    object-fit: cover;
+    background: #f1f5f9;
+}
+
+.preview-placeholder {
+    width: 100%;
+    height: 280px;
+    background: #f1f5f9;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    color: #94a3b8;
+}
+
+.preview-content {
+    padding: 22px;
+}
+
+.preview-title {
+    font-size: 1.4rem;
+    font-weight: 800;
+    color: #111827;
+}
+
+.preview-price {
+    font-size: 1.45rem;
+    font-weight: 800;
+    color: #f97316;
+}
+
+.preview-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 12px;
+}
+
+.preview-meta span {
+    background: #f1f5f9;
+    color: #475569;
+    padding: 6px 10px;
+    border-radius: 20px;
+    font-size: 0.75rem;
+    font-weight: 600;
+}
+
+.preview-feature {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    background: #eff6ff;
+    color: #1d4ed8;
+    padding: 6px 10px;
+    border-radius: 20px;
+    font-size: 0.72rem;
+    font-weight: 600;
+    margin: 3px;
+}
+
+
+/* =========================================================
+   INFO BOX
+========================================================= */
+
+.info-box {
+    border-radius: 12px;
+    padding: 14px 16px;
+    background: #eff6ff;
+    border: 1px solid #bfdbfe;
+    color: #1e40af;
+    font-size: 0.82rem;
+}
+
+.warning-box {
+    border-radius: 12px;
+    padding: 14px 16px;
+    background: #fff7ed;
+    border: 1px solid #fed7aa;
+    color: #9a3412;
+    font-size: 0.82rem;
+}
+
+
+/* =========================================================
+   REQUIRED ERROR
+========================================================= */
+
+.field-error {
+    color: #dc2626;
+    font-size: 0.78rem;
+    margin-top: 5px;
+}
+
+
+/* =========================================================
+   MOBILE
+========================================================= */
+
+@media (max-width: 768px) {
+
+    .post-header {
+        padding: 22px;
+    }
+
+    .form-section {
+        padding: 22px;
+    }
+
+    .post-header-icon {
+        width: 48px;
+        height: 48px;
+    }
+
+    .preview-main-image,
+    .preview-placeholder {
+        height: 220px;
+    }
+
+    .preview-img-wrap,
+    .existing-photo-thumb {
+        width: 105px;
+        height: 82px;
+    }
+}
+
 </style>
+
 {% endblock %}
+
 
 {% block content %}
-<div class="container py-4">
-  <div class="row justify-content-center">
-    <div class="col-lg-9">
-      <div class="post-card">
+
+<div class="container py-4 vehicle-form-page">
+
+    <div class="post-card">
+
+        <!-- =====================================================
+             HEADER
+        ====================================================== -->
+
         <div class="post-header">
-          <div class="post-header-icon">
-            <i class="bi bi-{% if editing %}pencil{% else %}plus-circle{% endif %}-fill"></i>
-          </div>
-          <div>
-            <h3 class="fw-800 mb-1">{% if editing %}Edit Your Listing{% else %}Post Your Vehicle{% endif %}</h3>
-            <p class="mb-0">{% if editing %}Update your vehicle details{% else %}Fill in the details to list your vehicle{% endif %}</p>
-          </div>
+
+            <div class="post-header-icon">
+                <i class="bi bi-{% if editing %}pencil{% else %}plus-circle{% endif %}-fill"></i>
+            </div>
+
+            <div>
+                <h3 class="mb-1">
+                    {% if editing %}
+                        Edit Your Vehicle
+                    {% else %}
+                        Post Your Vehicle
+                    {% endif %}
+                </h3>
+
+                <p class="mb-0">
+                    {% if editing %}
+                        Update your vehicle information and listing details.
+                    {% else %}
+                        Give buyers everything they need to know about your vehicle.
+                    {% endif %}
+                </p>
+            </div>
+
         </div>
 
-        <form method="post" enctype="multipart/form-data" novalidate>
-          {% csrf_token %}
 
-          <!-- ══ SECTION 1: Listing & Basic Info ══ -->
-          <div class="form-section">
-            <h6 class="section-title"><i class="bi bi-tag-fill text-warning me-2"></i>Listing Type & Basic Info</h6>
-            <div class="row g-3">
-              <div class="col-md-4">
-                <label class="form-label fw-600">Listing Type *</label>
-                {{ form.listing_type }}
-                {% if form.listing_type.errors %}<div class="text-danger small">{{ form.listing_type.errors.0 }}</div>{% endif %}
-              </div>
-              <div class="col-md-4">
-                <label class="form-label fw-600">Condition *</label>
-                {{ form.condition }}
-                {% if form.condition.errors %}<div class="text-danger small">{{ form.condition.errors.0 }}</div>{% endif %}
-              </div>
-              <div class="col-md-4">
-                <label class="form-label fw-600">Body Type *</label>
-                {{ form.body_type }}
-                {% if form.body_type.errors %}<div class="text-danger small">{{ form.body_type.errors.0 }}</div>{% endif %}
-              </div>
-              <div class="col-md-4">
-                <label class="form-label fw-600">Brand *</label>
-                {{ form.brand }}
-                {% if form.brand.errors %}<div class="text-danger small">{{ form.brand.errors.0 }}</div>{% endif %}
-              </div>
-              <div class="col-md-4">
-                <label class="form-label fw-600">Model *</label>
-                {{ form.model }}
-                {% if form.model.errors %}<div class="text-danger small">{{ form.model.errors.0 }}</div>{% endif %}
-              </div>
-              <div class="col-md-2">
-                <label class="form-label fw-600">Year *</label>
-                {{ form.year }}
-                {% if form.year.errors %}<div class="text-danger small">{{ form.year.errors.0 }}</div>{% endif %}
-              </div>
-              <div class="col-md-2">
-                <label class="form-label fw-600">Color *</label>
-                {{ form.color }}
-                {% if form.color.errors %}<div class="text-danger small">{{ form.color.errors.0 }}</div>{% endif %}
-              </div>
+        <form method="post"
+              enctype="multipart/form-data"
+              novalidate
+              id="vehicleForm">
+
+            {% csrf_token %}
+
+
+            <!-- =================================================
+                 SECTION 1
+            ================================================== -->
+
+            <div class="form-section">
+
+                <h6 class="section-title">
+                    <i class="bi bi-car-front-fill text-primary me-2"></i>
+                    Vehicle Information
+                </h6>
+
+                <p class="section-description">
+                    Start with the basic information about the vehicle you are listing.
+                </p>
+
+                <div class="row g-3">
+
+                    <div class="col-md-4">
+                        <label class="form-label fw-600">
+                            Listing Type *
+                        </label>
+
+                        {{ form.listing_type }}
+
+                        {% if form.listing_type.errors %}
+                            <div class="field-error">
+                                {{ form.listing_type.errors.0 }}
+                            </div>
+                        {% endif %}
+                    </div>
+
+
+                    <div class="col-md-4">
+                        <label class="form-label fw-600">
+                            Condition *
+                        </label>
+
+                        {{ form.condition }}
+
+                        {% if form.condition.errors %}
+                            <div class="field-error">
+                                {{ form.condition.errors.0 }}
+                            </div>
+                        {% endif %}
+                    </div>
+
+
+                    <div class="col-md-4">
+                        <label class="form-label fw-600">
+                            Body Type *
+                        </label>
+
+                        {{ form.body_type }}
+
+                        {% if form.body_type.errors %}
+                            <div class="field-error">
+                                {{ form.body_type.errors.0 }}
+                            </div>
+                        {% endif %}
+                    </div>
+
+
+                    <div class="col-md-4">
+                        <label class="form-label fw-600">
+                            Brand *
+                        </label>
+
+                        {{ form.brand }}
+
+                        {% if form.brand.errors %}
+                            <div class="field-error">
+                                {{ form.brand.errors.0 }}
+                            </div>
+                        {% endif %}
+                    </div>
+
+
+                    <div class="col-md-4">
+                        <label class="form-label fw-600">
+                            Model *
+                        </label>
+
+                        {{ form.model }}
+
+                        {% if form.model.errors %}
+                            <div class="field-error">
+                                {{ form.model.errors.0 }}
+                            </div>
+                        {% endif %}
+                    </div>
+
+
+                    <div class="col-md-2">
+                        <label class="form-label fw-600">
+                            Year *
+                        </label>
+
+                        {{ form.year }}
+
+                        {% if form.year.errors %}
+                            <div class="field-error">
+                                {{ form.year.errors.0 }}
+                            </div>
+                        {% endif %}
+                    </div>
+
+
+                    <div class="col-md-2">
+                        <label class="form-label fw-600">
+                            Color *
+                        </label>
+
+                        {{ form.color }}
+
+                        {% if form.color.errors %}
+                            <div class="field-error">
+                                {{ form.color.errors.0 }}
+                            </div>
+                        {% endif %}
+                    </div>
+
+                </div>
+
             </div>
-          </div>
 
-          <!-- ══ SECTION 2: Engine & Performance ══ -->
-          <div class="form-section">
-            <h6 class="section-title"><i class="bi bi-speedometer2 text-primary me-2"></i>Engine & Performance</h6>
-            <div class="row g-3">
-              <div class="col-md-3">
-                <label class="form-label fw-600">Fuel Type *</label>
-                {{ form.fuel_type }}
-                {% if form.fuel_type.errors %}<div class="text-danger small">{{ form.fuel_type.errors.0 }}</div>{% endif %}
-              </div>
-              <div class="col-md-3">
-                <label class="form-label fw-600">Transmission *</label>
-                {{ form.transmission }}
-                {% if form.transmission.errors %}<div class="text-danger small">{{ form.transmission.errors.0 }}</div>{% endif %}
-              </div>
-              <div class="col-md-3">
-                <label class="form-label fw-600">Drive Type</label>
-                {{ form.drive_type }}
-              </div>
-              <div class="col-md-3">
-                <label class="form-label fw-600">Engine Size</label>
-                {{ form.engine_size }}
-              </div>
-              <div class="col-md-3">
-                <label class="form-label fw-600">Horsepower (hp)</label>
-                {{ form.horsepower }}
-              </div>
-              <div class="col-md-3">
-                <label class="form-label fw-600">Mileage (km)</label>
-                {{ form.mileage }}
-              </div>
-              <div class="col-md-3">
-                <label class="form-label fw-600">No. of Seats</label>
-                {{ form.num_seats }}
-              </div>
-              <div class="col-md-3">
-                <label class="form-label fw-600">No. of Doors</label>
-                {{ form.num_doors }}
-              </div>
+
+            <!-- =================================================
+                 SECTION 2
+            ================================================== -->
+
+            <div class="form-section">
+
+                <h6 class="section-title">
+                    <i class="bi bi-speedometer2 text-primary me-2"></i>
+                    Specifications
+                </h6>
+
+                <p class="section-description">
+                    Provide the technical details buyers commonly look for.
+                </p>
+
+                <div class="row g-3">
+
+                    <div class="col-md-3">
+                        <label class="form-label fw-600">
+                            Fuel Type *
+                        </label>
+
+                        {{ form.fuel_type }}
+
+                        {% if form.fuel_type.errors %}
+                            <div class="field-error">
+                                {{ form.fuel_type.errors.0 }}
+                            </div>
+                        {% endif %}
+                    </div>
+
+
+                    <div class="col-md-3">
+                        <label class="form-label fw-600">
+                            Transmission *
+                        </label>
+
+                        {{ form.transmission }}
+
+                        {% if form.transmission.errors %}
+                            <div class="field-error">
+                                {{ form.transmission.errors.0 }}
+                            </div>
+                        {% endif %}
+                    </div>
+
+
+                    <div class="col-md-3">
+                        <label class="form-label fw-600">
+                            Drive Type
+                        </label>
+
+                        {{ form.drive_type }}
+                    </div>
+
+
+                    <div class="col-md-3">
+                        <label class="form-label fw-600">
+                            Engine Size
+                        </label>
+
+                        {{ form.engine_size }}
+                    </div>
+
+
+                    <div class="col-md-3">
+                        <label class="form-label fw-600">
+                            Horsepower
+                        </label>
+
+                        {{ form.horsepower }}
+
+                        <div class="form-text">
+                            hp
+                        </div>
+                    </div>
+
+
+                    <div class="col-md-3">
+                        <label class="form-label fw-600">
+                            Mileage
+                        </label>
+
+                        {{ form.mileage }}
+
+                        <div class="form-text">
+                            kilometers
+                        </div>
+                    </div>
+
+
+                    <div class="col-md-3">
+                        <label class="form-label fw-600">
+                            Seats
+                        </label>
+
+                        {{ form.num_seats }}
+                    </div>
+
+
+                    <div class="col-md-3">
+                        <label class="form-label fw-600">
+                            Doors
+                        </label>
+
+                        {{ form.num_doors }}
+                    </div>
+
+                </div>
+
             </div>
-          </div>
 
-          <!-- ══ SECTION 3: Comfort Features ══ -->
-          <div class="form-section">
-            <h6 class="section-title"><i class="bi bi-stars text-warning me-2"></i>Comfort & Interior Features</h6>
-            <div class="row g-3">
-              <div class="col-6 col-md-3">
-                <div class="feature-toggle{% if form.has_ac.value %} active{% endif %}" data-field="has_ac">
-                  <i class="bi bi-snow2 feature-icon-toggle"></i>
-                  <span class="feature-label-toggle">Air Conditioning</span>
-                  {{ form.has_ac }}
+
+            <!-- =================================================
+                 SECTION 3
+            ================================================== -->
+
+            <div class="form-section">
+
+                <h6 class="section-title">
+                    <i class="bi bi-stars text-warning me-2"></i>
+                    Features & Equipment
+                </h6>
+
+                <p class="section-description">
+                    Select the features included with the vehicle.
+                </p>
+
+
+                <h6 class="small fw-bold text-muted mb-3">
+                    Comfort & Interior
+                </h6>
+
+                <div class="row g-3 mb-4">
+
+                    {% include "core/_feature_toggle.html" with field=form.has_ac icon="snow2" label="Air Conditioning" %}
+                    {% include "core/_feature_toggle.html" with field=form.has_power_steering icon="arrow-left-right" label="Power Steering" %}
+                    {% include "core/_feature_toggle.html" with field=form.has_power_windows icon="window" label="Power Windows" %}
+                    {% include "core/_feature_toggle.html" with field=form.has_leather_seats icon="journal-richtext" label="Leather Seats" %}
+                    {% include "core/_feature_toggle.html" with field=form.has_sunroof icon="sun" label="Sunroof / Moonroof" %}
+                    {% include "core/_feature_toggle.html" with field=form.has_tinted icon="shadows" label="Tinted Windows" %}
+                    {% include "core/_feature_toggle.html" with field=form.has_bluetooth icon="bluetooth" label="Bluetooth / Audio" %}
+                    {% include "core/_feature_toggle.html" with field=form.has_spare_tire icon="circle" label="Spare Tire" %}
+
                 </div>
-              </div>
-              <div class="col-6 col-md-3">
-                <div class="feature-toggle{% if form.has_power_steering.value %} active{% endif %}" data-field="has_power_steering">
-                  <i class="bi bi-arrow-left-right feature-icon-toggle"></i>
-                  <span class="feature-label-toggle">Power Steering</span>
-                  {{ form.has_power_steering }}
+
+
+                <h6 class="small fw-bold text-muted mb-3">
+                    Safety & Technology
+                </h6>
+
+                <div class="row g-3">
+
+                    {% include "core/_feature_toggle.html" with field=form.has_abs icon="hexagon-fill" label="ABS Brakes" %}
+                    {% include "core/_feature_toggle.html" with field=form.has_airbags icon="balloon-fill" label="Airbags" %}
+                    {% include "core/_feature_toggle.html" with field=form.has_backup_camera icon="camera-fill" label="Backup Camera" %}
+                    {% include "core/_feature_toggle.html" with field=form.has_dashcam icon="camera-video-fill" label="Dashcam" %}
+                    {% include "core/_feature_toggle.html" with field=form.has_gps icon="geo-alt-fill" label="GPS Navigation" %}
+                    {% include "core/_feature_toggle.html" with field=form.has_alarm icon="shield-lock-fill" label="Car Alarm / Immobilizer" %}
+
                 </div>
-              </div>
-              <div class="col-6 col-md-3">
-                <div class="feature-toggle{% if form.has_power_windows.value %} active{% endif %}" data-field="has_power_windows">
-                  <i class="bi bi-window feature-icon-toggle"></i>
-                  <span class="feature-label-toggle">Power Windows</span>
-                  {{ form.has_power_windows }}
-                </div>
-              </div>
-              <div class="col-6 col-md-3">
-                <div class="feature-toggle{% if form.has_leather_seats.value %} active{% endif %}" data-field="has_leather_seats">
-                  <i class="bi bi-journal-richtext feature-icon-toggle"></i>
-                  <span class="feature-label-toggle">Leather Seats</span>
-                  {{ form.has_leather_seats }}
-                </div>
-              </div>
-              <div class="col-6 col-md-3">
-                <div class="feature-toggle{% if form.has_sunroof.value %} active{% endif %}" data-field="has_sunroof">
-                  <i class="bi bi-sun feature-icon-toggle"></i>
-                  <span class="feature-label-toggle">Sunroof</span>
-                  {{ form.has_sunroof }}
-                </div>
-              </div>
-              <div class="col-6 col-md-3">
-                <div class="feature-toggle{% if form.has_tinted.value %} active{% endif %}" data-field="has_tinted">
-                  <i class="bi bi-shadows feature-icon-toggle"></i>
-                  <span class="feature-label-toggle">Tinted Windows</span>
-                  {{ form.has_tinted }}
-                </div>
-              </div>
-              <div class="col-6 col-md-3">
-                <div class="feature-toggle{% if form.has_bluetooth.value %} active{% endif %}" data-field="has_bluetooth">
-                  <i class="bi bi-bluetooth feature-icon-toggle"></i>
-                  <span class="feature-label-toggle">Bluetooth / Audio</span>
-                  {{ form.has_bluetooth }}
-                </div>
-              </div>
-              <div class="col-6 col-md-3">
-                <div class="feature-toggle{% if form.has_spare_tire.value %} active{% endif %}" data-field="has_spare_tire">
-                  <i class="bi bi-circle feature-icon-toggle"></i>
-                  <span class="feature-label-toggle">Spare Tire</span>
-                  {{ form.has_spare_tire }}
-                </div>
-              </div>
+
             </div>
-          </div>
 
-          <!-- ══ SECTION 4: Safety & Technology ══ -->
-          <div class="form-section">
-            <h6 class="section-title"><i class="bi bi-shield-check-fill text-primary me-2"></i>Safety & Technology</h6>
-            <div class="row g-3">
-              <div class="col-6 col-md-3">
-                <div class="feature-toggle{% if form.has_abs.value %} active{% endif %}" data-field="has_abs">
-                  <i class="bi bi-hexagon-fill feature-icon-toggle"></i>
-                  <span class="feature-label-toggle">ABS Brakes</span>
-                  {{ form.has_abs }}
+
+            <!-- =================================================
+                 SECTION 4
+            ================================================== -->
+
+            <div class="form-section">
+
+                <h6 class="section-title">
+                    <i class="bi bi-file-earmark-check-fill text-primary me-2"></i>
+                    Registration & Documents
+                </h6>
+
+                <div class="row g-3">
+
+                    <div class="col-md-3">
+                        <div class="feature-toggle">
+                            <span class="feature-icon-toggle">
+                                <i class="bi bi-card-checklist"></i>
+                            </span>
+
+                            <span class="feature-label-toggle">
+                                OR/CR Complete
+                            </span>
+
+                            {{ form.is_registered }}
+                        </div>
+                    </div>
+
+
+                    <div class="col-md-3">
+                        <div class="feature-toggle">
+                            <span class="feature-icon-toggle">
+                                <i class="bi bi-patch-check-fill"></i>
+                            </span>
+
+                            <span class="feature-label-toggle">
+                                With Insurance
+                            </span>
+
+                            {{ form.has_insurance }}
+                        </div>
+                    </div>
+
+
+                    <div class="col-md-4">
+                        <label class="form-label fw-600">
+                            Plate Number
+                            <span class="text-muted">(optional)</span>
+                        </label>
+
+                        {{ form.plate_number }}
+
+                        <div class="form-text">
+                            This information should not be publicly displayed.
+                        </div>
+                    </div>
+
                 </div>
-              </div>
-              <div class="col-6 col-md-3">
-                <div class="feature-toggle{% if form.has_airbags.value %} active{% endif %}" data-field="has_airbags">
-                  <i class="bi bi-balloon-fill feature-icon-toggle"></i>
-                  <span class="feature-label-toggle">Airbags</span>
-                  {{ form.has_airbags }}
-                </div>
-              </div>
-              <div class="col-6 col-md-3">
-                <div class="feature-toggle{% if form.has_backup_camera.value %} active{% endif %}" data-field="has_backup_camera">
-                  <i class="bi bi-camera-fill feature-icon-toggle"></i>
-                  <span class="feature-label-toggle">Backup Camera</span>
-                  {{ form.has_backup_camera }}
-                </div>
-              </div>
-              <div class="col-6 col-md-3">
-                <div class="feature-toggle{% if form.has_dashcam.value %} active{% endif %}" data-field="has_dashcam">
-                  <i class="bi bi-camera-video-fill feature-icon-toggle"></i>
-                  <span class="feature-label-toggle">Dashcam</span>
-                  {{ form.has_dashcam }}
-                </div>
-              </div>
-              <div class="col-6 col-md-3">
-                <div class="feature-toggle{% if form.has_gps.value %} active{% endif %}" data-field="has_gps">
-                  <i class="bi bi-geo-alt-fill feature-icon-toggle"></i>
-                  <span class="feature-label-toggle">GPS Navigation</span>
-                  {{ form.has_gps }}
-                </div>
-              </div>
-              <div class="col-6 col-md-3">
-                <div class="feature-toggle{% if form.has_alarm.value %} active{% endif %}" data-field="has_alarm">
-                  <i class="bi bi-shield-lock-fill feature-icon-toggle"></i>
-                  <span class="feature-label-toggle">Car Alarm</span>
-                  {{ form.has_alarm }}
-                </div>
-              </div>
+
             </div>
-          </div>
 
-          <!-- ══ SECTION 5: Documents ══ -->
-          <div class="form-section">
-            <h6 class="section-title"><i class="bi bi-file-earmark-check-fill text-primary me-2"></i>Documents & Registration</h6>
-            <div class="row g-3">
-              <div class="col-6 col-md-3">
-                <div class="feature-toggle{% if form.is_registered.value %} active{% endif %}" data-field="is_registered">
-                  <i class="bi bi-card-checklist feature-icon-toggle"></i>
-                  <span class="feature-label-toggle">OR/CR Complete</span>
-                  {{ form.is_registered }}
+
+            <!-- =================================================
+                 SECTION 5 - VEHICLE HISTORY
+            ================================================== -->
+
+            <div class="form-section">
+
+                <h6 class="section-title">
+                    <i class="bi bi-clock-history text-warning me-2"></i>
+                    Vehicle History
+                </h6>
+
+                <p class="section-description">
+                    Being transparent about the vehicle's history helps buyers make informed decisions.
+                </p>
+
+
+                <div class="row g-3">
+
+                    <div class="col-md-4">
+
+                        <label class="form-label fw-600">
+                            Previous Owners
+                        </label>
+
+                        {{ form.previous_owners }}
+
+                    </div>
+
+
+                    <div class="col-md-4">
+
+                        <label class="form-label fw-600">
+                            Accident History
+                        </label>
+
+                        {{ form.accident_history }}
+
+                    </div>
+
+
+                    <div class="col-md-4">
+
+                        <label class="form-label fw-600">
+                            Flood Damage
+                        </label>
+
+                        {{ form.flood_damage }}
+
+                    </div>
+
+
+                    <div class="col-md-4">
+
+                        <label class="form-label fw-600">
+                            Vehicle Condition
+                        </label>
+
+                        {{ form.modification_status }}
+
+                    </div>
+
+
+                    <div class="col-md-4">
+
+                        <label class="form-label fw-600">
+                            Service / Maintenance Records
+                        </label>
+
+                        {{ form.service_records }}
+
+                    </div>
+
+
+                    <div class="col-md-12">
+
+                        <label class="form-label fw-600">
+                            Reason for Selling
+                            <span class="text-muted">(optional)</span>
+                        </label>
+
+                        {{ form.reason_for_selling }}
+
+                    </div>
+
                 </div>
-              </div>
-              <div class="col-6 col-md-3">
-                <div class="feature-toggle{% if form.has_insurance.value %} active{% endif %}" data-field="has_insurance">
-                  <i class="bi bi-patch-check-fill feature-icon-toggle"></i>
-                  <span class="feature-label-toggle">With Insurance</span>
-                  {{ form.has_insurance }}
+
+
+                <div class="info-box mt-4">
+
+                    <i class="bi bi-info-circle-fill me-2"></i>
+
+                    Providing accurate vehicle history can help buyers understand the condition
+                    of the vehicle before contacting the seller.
+
                 </div>
-              </div>
-              <div class="col-md-4">
-                <label class="form-label fw-600">Plate Number <span class="text-muted">(optional)</span></label>
-                {{ form.plate_number }}
-              </div>
-            </div>
-          </div>
 
-          <!-- ══ SECTION 6: Pricing ══ -->
-          <div class="form-section">
-            <h6 class="section-title"><i class="bi bi-cash-coin text-warning me-2"></i>Pricing</h6>
-            <div class="row g-3">
-              <div class="col-md-5">
-                <label class="form-label fw-600">Price (₱) *</label>
-                <div class="input-group">
-                  <span class="input-group-text fw-700">₱</span>
-                  {{ form.price }}
+            </div>
+
+
+            <!-- =================================================
+                 SECTION 6 - PRICING
+            ================================================== -->
+
+            <div class="form-section">
+
+                <h6 class="section-title">
+                    <i class="bi bi-cash-coin text-warning me-2"></i>
+                    Pricing
+                </h6>
+
+                <div class="row g-3">
+
+                    <div class="col-md-5">
+
+                        <label class="form-label fw-600">
+                            Price (₱) *
+                        </label>
+
+                        <div class="input-group">
+
+                            <span class="input-group-text fw-bold">
+                                ₱
+                            </span>
+
+                            {{ form.price }}
+
+                        </div>
+
+                        {% if form.price.errors %}
+                            <div class="field-error">
+                                {{ form.price.errors.0 }}
+                            </div>
+                        {% endif %}
+
+                    </div>
+
+
+                    <div class="col-md-4">
+
+                        <label class="form-label fw-600">
+                            Price Unit
+                        </label>
+
+                        {{ form.price_unit }}
+
+                        <div class="form-text">
+                            Total, per day, per month, etc.
+                        </div>
+
+                    </div>
+
+
+                    <div class="col-md-3 d-flex align-items-end">
+
+                        <div class="feature-toggle w-100">
+
+                            <span class="feature-icon-toggle">
+                                <i class="bi bi-arrow-left-right"></i>
+                            </span>
+
+                            <span class="feature-label-toggle">
+                                Negotiable
+                            </span>
+
+                            {{ form.price_negotiable }}
+
+                        </div>
+
+                    </div>
+
                 </div>
-                {% if form.price.errors %}<div class="text-danger small">{{ form.price.errors.0 }}</div>{% endif %}
-              </div>
-              <div class="col-md-4">
-                <label class="form-label fw-600">Price Unit</label>
-                {{ form.price_unit }}
-                <div class="form-text">e.g. /day, /month, total, negotiable</div>
-              </div>
-            </div>
-          </div>
 
-          <!-- ══ SECTION 7: Location ══ -->
-          <div class="form-section">
-            <h6 class="section-title"><i class="bi bi-geo-alt-fill text-danger me-2"></i>Location & Availability</h6>
-            <div class="row g-3">
-              <div class="col-12">
-                <label class="form-label fw-600">Pickup / Viewing Location *</label>
-                {{ form.pickup_location }}
-                {% if form.pickup_location.errors %}<div class="text-danger small">{{ form.pickup_location.errors.0 }}</div>{% endif %}
-              </div>
-              <div class="col-12">
-                <div class="feature-toggle{% if form.delivery_available.value %} active{% endif %}" data-field="delivery_available" style="max-width:280px;">
-                  <i class="bi bi-truck feature-icon-toggle"></i>
-                  <span class="feature-label-toggle">Delivery Available</span>
-                  {{ form.delivery_available }}
+            </div>
+
+
+            <!-- =================================================
+                 SECTION 7 - LOCATION
+            ================================================== -->
+
+            <div class="form-section">
+
+                <h6 class="section-title">
+                    <i class="bi bi-geo-alt-fill text-danger me-2"></i>
+                    Location & Availability
+                </h6>
+
+                <div class="row g-3">
+
+                    <div class="col-md-9">
+
+                        <label class="form-label fw-600">
+                            Pickup / Viewing Location *
+                        </label>
+
+                        {{ form.pickup_location }}
+
+                        {% if form.pickup_location.errors %}
+                            <div class="field-error">
+                                {{ form.pickup_location.errors.0 }}
+                            </div>
+                        {% endif %}
+
+                    </div>
+
+
+                    <div class="col-md-3 d-flex align-items-end">
+
+                        <div class="feature-toggle w-100">
+
+                            <span class="feature-icon-toggle">
+                                <i class="bi bi-truck"></i>
+                            </span>
+
+                            <span class="feature-label-toggle">
+                                Delivery Available
+                            </span>
+
+                            {{ form.delivery_available }}
+
+                        </div>
+
+                    </div>
+
                 </div>
-              </div>
+
             </div>
-          </div>
 
-          <!-- ══ SECTION 8: Description ══ -->
-          <div class="form-section">
-            <h6 class="section-title"><i class="bi bi-file-text-fill text-secondary me-2"></i>Description</h6>
-            <label class="form-label fw-600">Vehicle Description *</label>
-            {{ form.description }}
-            {% if form.description.errors %}<div class="text-danger small">{{ form.description.errors.0 }}</div>{% endif %}
-          </div>
 
-          <!-- ══ SECTION 9: Photos ══ -->
-          <div class="form-section">
-            <h6 class="section-title"><i class="bi bi-images text-primary me-2"></i>Vehicle Photos</h6>
-            {% if editing and listing.photos.all %}
-            <div class="mb-3">
-              <p class="small text-muted fw-600">Existing photos:</p>
-              <div class="d-flex flex-wrap gap-2">
-                {% for photo in listing.photos.all %}
-                <div class="existing-photo-thumb">
-                  <img src="{{ photo.image.url }}" alt="">
-                  <a href="{% url 'delete_photo' photo.pk %}" class="delete-photo-btn" onclick="return confirm('Delete this photo?')">
-                    <i class="bi bi-x-circle-fill"></i>
-                  </a>
+            <!-- =================================================
+                 SECTION 8 - DESCRIPTION
+            ================================================== -->
+
+            <div class="form-section">
+
+                <h6 class="section-title">
+                    <i class="bi bi-file-text-fill text-secondary me-2"></i>
+                    About This Vehicle
+                </h6>
+
+                <label class="form-label fw-600">
+                    Vehicle Description *
+                </label>
+
+                {{ form.description }}
+
+                <div class="d-flex justify-content-between mt-2">
+
+                    <small class="text-muted">
+                        Describe the vehicle's condition, maintenance, upgrades, and anything buyers should know.
+                    </small>
+
+                    <small class="text-muted" id="descriptionCounter">
+                        0 characters
+                    </small>
+
                 </div>
-                {% endfor %}
-              </div>
-            </div>
-            {% endif %}
-            <div class="photo-upload-area" id="photoDropZone">
-              <i class="bi bi-cloud-upload-fill display-4 text-muted"></i>
-              <p class="mb-2 fw-600">Click to upload or drag &amp; drop photos</p>
-              <p class="small text-muted">First photo will be the main image. JPG, PNG accepted. Max 10 photos.</p>
-              <input type="file" name="photos" id="photoInput" multiple accept="image/*" class="d-none">
-              <label for="photoInput" class="btn btn-outline-primary mt-2 fw-600">
-                <i class="bi bi-camera me-2"></i>Choose Photos
-              </label>
-            </div>
-            <div id="photoPreview" class="d-flex flex-wrap gap-2 mt-3"></div>
-          </div>
 
-          <!-- Submit -->
-          <div class="d-flex gap-3 mt-2">
-            <button type="submit" class="btn btn-primary btn-lg flex-fill fw-600">
-              <i class="bi bi-check-circle me-2"></i>
-              {% if editing %}Update Listing{% else %}Post Vehicle{% endif %}
-            </button>
-            <a href="{% url 'dashboard' %}" class="btn btn-outline-secondary btn-lg px-4">Cancel</a>
-          </div>
+                {% if form.description.errors %}
+                    <div class="field-error">
+                        {{ form.description.errors.0 }}
+                    </div>
+                {% endif %}
+
+            </div>
+
+
+            <!-- =================================================
+                 SECTION 9 - PHOTOS
+            ================================================== -->
+
+            <div class="form-section">
+
+                <h6 class="section-title">
+                    <i class="bi bi-images text-primary me-2"></i>
+                    Vehicle Photos
+                </h6>
+
+                <p class="section-description">
+                    Good photos help buyers understand the condition of your vehicle.
+                </p>
+
+
+                {% if editing and listing.photos.all %}
+
+                    <div class="mb-4">
+
+                        <p class="small text-muted fw-bold">
+                            Existing Photos
+                        </p>
+
+                        <div class="d-flex flex-wrap gap-2">
+
+                            {% for photo in listing.photos.all %}
+
+                                <div class="existing-photo-thumb">
+
+                                    <img src="{{ photo.image.url }}" alt="Vehicle photo">
+
+                                    <a href="{% url 'delete_photo' photo.pk %}"
+                                       class="delete-photo-btn"
+                                       onclick="return confirm('Delete this photo?')">
+
+                                        <i class="bi bi-x"></i>
+
+                                    </a>
+
+                                </div>
+
+                            {% endfor %}
+
+                        </div>
+
+                    </div>
+
+                {% endif %}
+
+
+                <div class="photo-upload-area" id="photoDropZone">
+
+                    <i class="bi bi-cloud-arrow-up-fill text-primary"></i>
+
+                    <p class="mb-1 fw-bold">
+                        Drag & drop your vehicle photos here
+                    </p>
+
+                    <p class="photo-help mb-1">
+                        or click to browse your computer
+                    </p>
+
+                    <p class="photo-help mb-0">
+                        JPG, JPEG, PNG or WEBP • Maximum 10 photos
+                    </p>
+
+                    <input
+                        type="file"
+                        name="photos"
+                        id="photoInput"
+                        multiple
+                        accept="image/jpeg,image/png,image/webp"
+                        class="d-none"
+                    >
+
+                    <button
+                        type="button"
+                        class="btn btn-outline-primary mt-3 fw-bold"
+                        id="choosePhotosBtn">
+
+                        <i class="bi bi-camera me-2"></i>
+                        Choose Photos
+
+                    </button>
+
+                    <div class="photo-counter" id="photoCounter">
+                        0 / 10 photos selected
+                    </div>
+
+                </div>
+
+
+                <div id="photoPreview"
+                     class="d-flex flex-wrap gap-2 mt-3">
+                </div>
+
+
+                <div class="info-box mt-3">
+
+                    <i class="bi bi-lightbulb-fill me-2"></i>
+
+                    Recommended photos:
+                    <strong>front, rear, both sides, interior, dashboard and engine bay.</strong>
+
+                </div>
+
+            </div>
+
+
+            <!-- =================================================
+                 SECTION 10 - LISTING PREVIEW
+            ================================================== -->
+
+            <div class="form-section">
+
+                <h6 class="section-title">
+                    <i class="bi bi-eye-fill text-primary me-2"></i>
+                    Listing Preview
+                </h6>
+
+                <p class="section-description">
+                    This is approximately how your listing will appear to buyers.
+                </p>
+
+
+                <div class="preview-card">
+
+                    <div class="preview-header">
+
+                        <i class="bi bi-eye me-2"></i>
+                        Buyer Preview
+
+                    </div>
+
+
+                    <div id="previewImageContainer">
+
+                        <div class="preview-placeholder">
+
+                            <i class="bi bi-image fs-1 mb-2"></i>
+
+                            <span>
+                                Vehicle photo will appear here
+                            </span>
+
+                        </div>
+
+                    </div>
+
+
+                    <div class="preview-content">
+
+                        <div class="preview-title"
+                             id="previewTitle">
+
+                            Your Vehicle
+
+                        </div>
+
+
+                        <div class="preview-price mt-2"
+                             id="previewPrice">
+
+                            ₱0
+
+                        </div>
+
+
+                        <div id="previewNegotiable"
+                             class="small text-success fw-bold mt-1"
+                             style="display:none;">
+
+                            <i class="bi bi-check-circle-fill me-1"></i>
+                            Price Negotiable
+
+                        </div>
+
+
+                        <div class="preview-meta">
+
+                            <span id="previewYear">
+                                <i class="bi bi-calendar3 me-1"></i>
+                                Year
+                            </span>
+
+                            <span id="previewBody">
+                                <i class="bi bi-car-front me-1"></i>
+                                Body Type
+                            </span>
+
+                            <span id="previewFuel">
+                                <i class="bi bi-fuel-pump me-1"></i>
+                                Fuel
+                            </span>
+
+                            <span id="previewTransmission">
+                                <i class="bi bi-gear me-1"></i>
+                                Transmission
+                            </span>
+
+                            <span id="previewMileage">
+                                <i class="bi bi-speedometer2 me-1"></i>
+                                Mileage
+                            </span>
+
+                        </div>
+
+
+                        <hr class="my-4">
+
+
+                        <h6 class="fw-bold">
+                            Vehicle Features
+                        </h6>
+
+
+                        <div id="previewFeatures">
+
+                            <span class="text-muted small">
+                                Select features above to display them here.
+                            </span>
+
+                        </div>
+
+
+                        <hr class="my-4">
+
+
+                        <h6 class="fw-bold">
+                            Location
+                        </h6>
+
+
+                        <p class="text-muted mb-0"
+                           id="previewLocation">
+
+                            <i class="bi bi-geo-alt me-1"></i>
+                            Pickup / viewing location
+
+                        </p>
+
+
+                    </div>
+
+                </div>
+
+            </div>
+
+
+            <!-- =================================================
+                 SUBMIT
+            ================================================== -->
+
+            <div class="p-4">
+
+                <div class="warning-box mb-3">
+
+                    <i class="bi bi-shield-check me-2"></i>
+
+                    Your listing may require administrator approval before it becomes visible
+                    to other users.
+
+                </div>
+
+
+                <div class="d-flex gap-3">
+
+                    <button
+                        type="submit"
+                        class="btn btn-primary btn-lg flex-fill fw-bold">
+
+                        <i class="bi bi-check-circle me-2"></i>
+
+                        {% if editing %}
+                            Update Listing
+                        {% else %}
+                            Post Vehicle
+                        {% endif %}
+
+                    </button>
+
+
+                    <a href="{% url 'dashboard' %}"
+                       class="btn btn-outline-secondary btn-lg px-4">
+
+                        Cancel
+
+                    </a>
+
+                </div>
+
+            </div>
+
         </form>
-      </div>
+
     </div>
-  </div>
+
 </div>
+
 {% endblock %}
 
+
 {% block extra_js %}
+
 <script>
-// Photo drag & drop
+
+/* =========================================================
+   ELEMENTS
+========================================================= */
+
 const photoInput = document.getElementById('photoInput');
-const preview    = document.getElementById('photoPreview');
-const dropZone   = document.getElementById('photoDropZone');
+const photoPreview = document.getElementById('photoPreview');
+const photoDropZone = document.getElementById('photoDropZone');
+const choosePhotosBtn = document.getElementById('choosePhotosBtn');
+const photoCounter = document.getElementById('photoCounter');
 
-dropZone.addEventListener('click', () => photoInput.click());
-dropZone.addEventListener('dragover',  e => { e.preventDefault(); dropZone.classList.add('dragover'); });
-dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
-dropZone.addEventListener('drop', e => {
-  e.preventDefault(); dropZone.classList.remove('dragover');
-  photoInput.files = e.dataTransfer.files;
-  showPreviews(e.dataTransfer.files);
+const vehicleForm = document.getElementById('vehicleForm');
+
+
+/* =========================================================
+   PHOTO UPLOAD
+========================================================= */
+
+let selectedFiles = [];
+
+
+choosePhotosBtn.addEventListener('click', function(e) {
+
+    e.stopPropagation();
+
+    photoInput.click();
+
 });
-photoInput.addEventListener('change', e => showPreviews(e.target.files));
 
-function showPreviews(files) {
-  preview.innerHTML = '';
-  Array.from(files).forEach((file, i) => {
-    const reader = new FileReader();
-    reader.onload = e => {
-      const div = document.createElement('div');
-      div.className = 'preview-img-wrap';
-      div.innerHTML = `<img src="${e.target.result}" class="preview-img">${i === 0 ? '<span class="main-badge">Main</span>' : ''}`;
-      preview.appendChild(div);
-    };
-    reader.readAsDataURL(file);
-  });
+
+photoDropZone.addEventListener('click', function(e) {
+
+    if (e.target.closest('#choosePhotosBtn')) {
+        return;
+    }
+
+    photoInput.click();
+
+});
+
+
+photoDropZone.addEventListener('dragover', function(e) {
+
+    e.preventDefault();
+
+    photoDropZone.classList.add('dragover');
+
+});
+
+
+photoDropZone.addEventListener('dragleave', function() {
+
+    photoDropZone.classList.remove('dragover');
+
+});
+
+
+photoDropZone.addEventListener('drop', function(e) {
+
+    e.preventDefault();
+
+    photoDropZone.classList.remove('dragover');
+
+    handleFiles(e.dataTransfer.files);
+
+});
+
+
+photoInput.addEventListener('change', function(e) {
+
+    handleFiles(e.target.files);
+
+});
+
+
+function handleFiles(files) {
+
+    const incomingFiles = Array.from(files);
+
+    const allowedTypes = [
+        'image/jpeg',
+        'image/png',
+        'image/webp'
+    ];
+
+
+    for (const file of incomingFiles) {
+
+        if (!allowedTypes.includes(file.type)) {
+
+            alert(
+                file.name +
+                ' is not a supported image format.\n\n' +
+                'Please use JPG, PNG or WEBP.'
+            );
+
+            continue;
+        }
+
+
+        if (file.size > 10 * 1024 * 1024) {
+
+            alert(
+                file.name +
+                ' is larger than 10 MB.'
+            );
+
+            continue;
+        }
+
+
+        if (selectedFiles.length >= 10) {
+
+            alert(
+                'You can upload a maximum of 10 photos.'
+            );
+
+            break;
+        }
+
+
+        selectedFiles.push(file);
+
+    }
+
+
+    updatePhotoInput();
+
+    renderPhotoPreviews();
+
 }
 
-// Feature toggle click behaviour
-document.querySelectorAll('.feature-toggle').forEach(toggle => {
-  const checkbox = toggle.querySelector('input[type="checkbox"]');
-  if (!checkbox) return;
 
-  if (checkbox.checked) toggle.classList.add('active');
+function updatePhotoInput() {
 
-  toggle.addEventListener('click', function (e) {
-    if (e.target === checkbox) return;
-    checkbox.checked = !checkbox.checked;
-    toggle.classList.toggle('active', checkbox.checked);
-  });
+    const dataTransfer = new DataTransfer();
 
-  checkbox.addEventListener('change', function () {
-    toggle.classList.toggle('active', checkbox.checked);
-  });
-});
+    selectedFiles.forEach(function(file) {
+
+        dataTransfer.items.add(file);
+
+    });
+
+    photoInput.files = dataTransfer.files;
+
+
+    photoCounter.textContent =
+        selectedFiles.length +
+        ' / 10 photos selected';
+
+}
+
+
+function renderPhotoPreviews() {
+
+    photoPreview.innerHTML = '';
+
+
+    selectedFiles.forEach(function(file, index) {
+
+        const reader = new FileReader();
+
+
+        reader.onload = function(e) {
+
+            const wrapper = document.createElement('div');
+
+            wrapper.className = 'preview-img-wrap';
+
+
+            wrapper.innerHTML = `
+
+                <img
+                    src="${e.target.result}"
+                    class="preview-img"
+                    alt="Vehicle preview"
+                >
+
+                ${
+                    index === 0
+                    ? '<span class="main-badge">Main</span>'
+                    : ''
+                }
+
+                <button
+                    type="button"
+                    class="remove-preview"
+                    data-index="${index}"
+                    title="Remove photo">
+
+                    <i class="bi bi-x"></i>
+
+                </button>
+
+            `;
+
+
+            wrapper
+                .querySelector('.remove-preview')
+                .addEventListener('click', function() {
+
+                    const removeIndex =
+                        parseInt(this.dataset.index);
+
+                    selectedFiles.splice(removeIndex, 1);
+
+                    updatePhotoInput();
+
+                    renderPhotoPreviews();
+
+                });
+
+
+            photoPreview.appendChild(wrapper);
+
+        };
+
+
+        reader.readAsDataURL(file);
+
+    });
+
+
+    updateMainPreview();
+
+}
+
+
+/* =========================================================
+   LIVE LISTING PREVIEW
+========================================================= */
+
+function getValue(fieldName) {
+
+    const field = document.getElementById(
+        'id_' + fieldName
+    );
+
+    if (!field) return '';
+
+    return field.value || '';
+
+}
+
+
+function getSelectedText(fieldName) {
+
+    const field = document.getElementById(
+        'id_' + fieldName
+    );
+
+    if (!field) return '';
+
+    if (field.tagName === 'SELECT') {
+
+        const option =
+            field.options[field.selectedIndex];
+
+        return option ? option.text : '';
+
+    }
+
+    return field.value || '';
+
+}
+
+
+function updateListingPreview() {
+
+    const brand =
+        getValue('brand');
+
+    const model =
+        getValue('model');
+
+    const year =
+        getValue('year');
+
+    const price =
+        getValue('price');
+
+    const body =
+        getSelectedText('body_type');
+
+    const fuel =
+        getSelectedText('fuel_type');
+
+    const transmission =
+        getSelectedText('transmission');
+
+    const mileage =
+        getValue('mileage');
+
+    const location =
+        getValue('pickup_location');
+
+
+    /* Title */
+
+    const titleParts = [];
+
+    if (year) titleParts.push(year);
+
+    if (brand) titleParts.push(brand);
+
+    if (model) titleParts.push(model);
+
+
+    document.getElementById('previewTitle').textContent =
+        titleParts.length
+        ? titleParts.join(' ')
+        : 'Your Vehicle';
+
+
+    /* Price */
+
+    const numericPrice =
+        parseFloat(price);
+
+
+    if (!isNaN(numericPrice)) {
+
+        document.getElementById('previewPrice').textContent =
+            '₱' +
+            numericPrice.toLocaleString(
+                'en-PH',
+                {
+                    minimumFractionDigits: 0,
+                    maximumFractionDigits: 2
+                }
+            );
+
+    } else {
+
+        document.getElementById('previewPrice').textContent =
+            '₱0';
+
+    }
+
+
+    /* Negotiable */
+
+    const negotiable =
+        document.getElementById(
+            'id_price_negotiable'
+        );
+
+
+    const negotiableLabel =
+        document.getElementById(
+            'previewNegotiable'
+        );
+
+
+    if (negotiable && negotiable.checked) {
+
+        negotiableLabel.style.display =
+            'block';
+
+    } else {
+
+        negotiableLabel.style.display =
+            'none';
+
+    }
+
+
+    /* Specifications */
+
+    document.getElementById('previewYear').innerHTML =
+        '<i class="bi bi-calendar3 me-1"></i>' +
+        (year || 'Year');
+
+
+    document.getElementById('previewBody').innerHTML =
+        '<i class="bi bi-car-front me-1"></i>' +
+        (body || 'Body Type');
+
+
+    document.getElementById('previewFuel').innerHTML =
+        '<i class="bi bi-fuel-pump me-1"></i>' +
+        (fuel || 'Fuel');
+
+
+    document.getElementById('previewTransmission').innerHTML =
+        '<i class="bi bi-gear me-1"></i>' +
+        (transmission || 'Transmission');
+
+
+    document.getElementById('previewMileage').innerHTML =
+        '<i class="bi bi-speedometer2 me-1"></i>' +
+        (mileage
+            ? Number(mileage).toLocaleString() + ' km'
+            : 'Mileage'
+        );
+
+
+    /* Location */
+
+    document.getElementById(
+        'previewLocation'
+    ).innerHTML =
+
+        '<i class="bi bi-geo-alt me-1"></i>' +
+
+        (location ||
+        'Pickup / viewing location');
+
+
+    updateFeaturePreview();
+
+}
+
+
+function updateMainPreview() {
+
+    const container =
+        document.getElementById(
+            'previewImageContainer'
+        );
+
+
+    if (!selectedFiles.length) {
+
+        container.innerHTML = `
+
+            <div class="preview-placeholder">
+
+                <i class="bi bi-image fs-1 mb-2"></i>
+
+                <span>
+                    Vehicle photo will appear here
+                </span>
+
+            </div>
+
+        `;
+
+        return;
+
+    }
+
+
+    const reader =
+        new FileReader();
+
+
+    reader.onload = function(e) {
+
+        container.innerHTML = `
+
+            <img
+                src="${e.target.result}"
+                class="preview-main-image"
+                alt="Main vehicle preview"
+            >
+
+        `;
+
+    };
+
+
+    reader.readAsDataURL(
+        selectedFiles[0]
+    );
+
+}
+
+
+/* =========================================================
+   FEATURE PREVIEW
+========================================================= */
+
+const featureFields = [
+
+    {
+        field: 'has_ac',
+        label: 'Air Conditioning'
+    },
+
+    {
+        field: 'has_power_steering',
+        label: 'Power Steering'
+    },
+
+    {
+        field: 'has_power_windows',
+        label: 'Power Windows'
+    },
+
+    {
+        field: 'has_leather_seats',
+        label: 'Leather Seats'
+    },
+
+    {
+        field: 'has_sunroof',
+        label: 'Sunroof'
+    },
+
+    {
+        field: 'has_tinted',
+        label: 'Tinted Windows'
+    },
+
+    {
+        field: 'has_bluetooth',
+        label: 'Bluetooth / Audio'
+    },
+
+    {
+        field: 'has_spare_tire',
+        label: 'Spare Tire'
+    },
+
+    {
+        field: 'has_abs',
+        label: 'ABS'
+    },
+
+    {
+        field: 'has_airbags',
+        label: 'Airbags'
+    },
+
+    {
+        field: 'has_backup_camera',
+        label: 'Backup Camera'
+    },
+
+    {
+        field: 'has_dashcam',
+        label: 'Dashcam'
+    },
+
+    {
+        field: 'has_gps',
+        label: 'GPS Navigation'
+    },
+
+    {
+        field: 'has_alarm',
+        label: 'Car Alarm'
+    }
+
+];
+
+
+function updateFeaturePreview() {
+
+    const container =
+        document.getElementById(
+            'previewFeatures'
+        );
+
+
+    const activeFeatures = [];
+
+
+    featureFields.forEach(function(item) {
+
+        const checkbox =
+            document.getElementById(
+                'id_' + item.field
+            );
+
+
+        if (checkbox && checkbox.checked) {
+
+            activeFeatures.push(
+                item.label
+            );
+
+        }
+
+    });
+
+
+    if (!activeFeatures.length) {
+
+        container.innerHTML = `
+
+            <span class="text-muted small">
+                No additional features selected.
+            </span>
+
+        `;
+
+        return;
+
+    }
+
+
+    container.innerHTML = '';
+
+
+    activeFeatures.forEach(function(feature) {
+
+        const span =
+            document.createElement('span');
+
+        span.className =
+            'preview-feature';
+
+        span.innerHTML =
+            '<i class="bi bi-check-circle-fill"></i> ' +
+            feature;
+
+        container.appendChild(span);
+
+    });
+
+}
+
+
+/* =========================================================
+   FEATURE TOGGLE
+========================================================= */
+
+document
+    .querySelectorAll('.feature-toggle')
+    .forEach(function(toggle) {
+
+        const checkbox =
+            toggle.querySelector(
+                'input[type="checkbox"]'
+            );
+
+
+        if (!checkbox) return;
+
+
+        if (checkbox.checked) {
+
+            toggle.classList.add(
+                'active'
+            );
+
+        }
+
+
+        toggle.addEventListener(
+            'click',
+            function(e) {
+
+                if (
+                    e.target.tagName ===
+                    'INPUT'
+                ) {
+                    return;
+                }
+
+
+                checkbox.checked =
+                    !checkbox.checked;
+
+
+                toggle.classList.toggle(
+                    'active',
+                    checkbox.checked
+                );
+
+
+                updateListingPreview();
+
+            }
+        );
+
+
+        checkbox.addEventListener(
+            'change',
+            function() {
+
+                toggle.classList.toggle(
+                    'active',
+                    checkbox.checked
+                );
+
+
+                updateListingPreview();
+
+            }
+        );
+
+    });
+
+
+/* =========================================================
+   LIVE FIELD UPDATES
+========================================================= */
+
+document
+    .querySelectorAll(
+        '#vehicleForm input, #vehicleForm select, #vehicleForm textarea'
+    )
+    .forEach(function(field) {
+
+        field.addEventListener(
+            'input',
+            updateListingPreview
+        );
+
+        field.addEventListener(
+            'change',
+            updateListingPreview
+        );
+
+    });
+
+
+/* =========================================================
+   DESCRIPTION COUNTER
+========================================================= */
+
+const descriptionField =
+    document.getElementById(
+        'id_description'
+    );
+
+const descriptionCounter =
+    document.getElementById(
+        'descriptionCounter'
+    );
+
+
+function updateDescriptionCounter() {
+
+    if (!descriptionField) return;
+
+    const length =
+        descriptionField.value.length;
+
+
+    descriptionCounter.textContent =
+        length + ' characters';
+
+}
+
+
+if (descriptionField) {
+
+    descriptionField.addEventListener(
+        'input',
+        updateDescriptionCounter
+    );
+
+    updateDescriptionCounter();
+
+}
+
+
+/* =========================================================
+   FORM SUBMIT VALIDATION
+========================================================= */
+
+vehicleForm.addEventListener(
+    'submit',
+    function(e) {
+
+        /* Photo validation for NEW listings */
+
+        const isEditing =
+            {{ editing|yesno:"true,false" }};
+
+
+        if (
+            !isEditing &&
+            selectedFiles.length === 0
+        ) {
+
+            alert(
+                'Please upload at least one vehicle photo before posting.'
+            );
+
+            e.preventDefault();
+
+            return;
+
+        }
+
+
+        if (
+            selectedFiles.length > 10
+        ) {
+
+            alert(
+                'You can upload a maximum of 10 photos.'
+            );
+
+            e.preventDefault();
+
+            return;
+
+        }
+
+    }
+);
+
+
+/* =========================================================
+   INITIALIZE
+========================================================= */
+
+updateListingPreview();
+
+updateDescriptionCounter();
+
 </script>
+
 {% endblock %}
