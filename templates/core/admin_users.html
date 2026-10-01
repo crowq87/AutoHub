@@ -16,7 +16,7 @@
       <table class="table table-hover align-middle">
         <thead class="table-dark">
           <tr>
-            <th>#</th><th>Username</th><th>Full Name</th><th>Email</th><th>Phone</th><th>Joined</th><th>Listings</th><th>Status</th>
+            <th>#</th><th>Username</th><th>Full Name</th><th>Email</th><th>Phone</th><th>Joined</th><th>Listings</th><th>ID Verification</th><th>Status</th>
           </tr>
         </thead>
         <tbody>
@@ -42,6 +42,34 @@
             <td>
               <span class="badge bg-primary rounded-pill">{{ u.listings.filter.count|default:"0" }}</span>
             </td>
+            <td class="small">
+              {% if u.profile.role == 'seller' %}
+                {% if u.is_superuser %}
+                  <span class="badge bg-danger">Exempt</span>
+                {% elif u.profile.id_verification_status == 'verified' %}
+                  <span class="badge bg-success">Verified</span>
+                {% elif u.profile.id_verification_status == 'pending' %}
+                  <span class="badge bg-warning text-dark">Pending Review</span>
+                {% elif u.profile.id_verification_status == 'rejected' %}
+                  <span class="badge bg-danger">Rejected</span>
+                {% else %}
+                  <span class="badge bg-secondary">Not Submitted</span>
+                {% endif %}
+                {% if u.profile.id_document_path %}
+                  <a
+                    href="{% url 'admin_view_seller_id' u.id %}"
+                    class="btn btn-sm btn-outline-primary ms-1"
+                    target="_blank"
+                    rel="noopener"
+                    title="View submitted ID (secure, expires in 5 min)"
+                  >
+                    <i class="bi bi-eye"></i>
+                  </a>
+                {% endif %}
+              {% else %}
+                <span class="text-muted">—</span>
+              {% endif %}
+            </td>
             <td>
               {% if u.is_superuser %}<span class="badge bg-danger">Superuser</span>
               {% elif u.is_staff %}<span class="badge bg-warning text-dark">Staff</span>
@@ -50,7 +78,7 @@
             </td>
           </tr>
           {% empty %}
-          <tr><td colspan="8" class="text-center text-muted py-4">No users found.</td></tr>
+          <tr><td colspan="9" class="text-center text-muted py-4">No users found.</td></tr>
           {% endfor %}
         </tbody>
       </table>

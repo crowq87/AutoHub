@@ -65,6 +65,12 @@ urlpatterns = [
         name='become_seller'
     ),
 
+    path(
+        'verify-identity/',
+        views.verify_identity,
+        name='verify_identity'
+    ),
+
 
     # =========================================================
     # VEHICLE LISTINGS
@@ -106,6 +112,12 @@ urlpatterns = [
     ),
 
     path(
+        'vehicles/<int:pk>/status/',
+        views.update_listing_status,
+        name='update_listing_status'
+    ),
+
+    path(
         'vehicles/<int:pk>/edit/',
         views.edit_vehicle,
         name='edit_vehicle'
@@ -138,6 +150,24 @@ urlpatterns = [
         'admin-panel/users/',
         views.admin_users,
         name='admin_users'
+    ),
+
+    path(
+        'admin-panel/users/<int:user_id>/view-id/',
+        views.admin_view_seller_id,
+        name='admin_view_seller_id'
+    ),
+
+    path(
+        'admin-panel/users/<int:user_id>/approve-id/',
+        views.admin_approve_seller_id,
+        name='admin_approve_seller_id'
+    ),
+
+    path(
+        'admin-panel/users/<int:user_id>/reject-id/',
+        views.admin_reject_seller_id,
+        name='admin_reject_seller_id'
     ),
 
     path(

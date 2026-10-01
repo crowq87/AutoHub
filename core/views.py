@@ -32,7 +32,10 @@ from .forms import (
     SearchFilterForm,
     SellerRatingForm,
     VehicleRatingForm,
+    SellerIDVerificationForm,
 )
+from django.utils import timezone
+from .supabase_utils import upload_id_document, get_signed_id_url, delete_id_document
 from firebase_admin import auth as firebase_auth
 from .firebase_utils import firebase_verify_password, send_firebase_verification_email, firebase_is_email_verified
 from functools import wraps
@@ -613,6 +616,110 @@ def rate_vehicle(request, pk):
     return redirect(f"{reverse('vehicle_detail', kwargs={'pk': pk})}#reviews")
 
 
+# ─── UPDATE LISTING AVAILABILITY (owner marks rented/sold/available) ─────────
+@login_required
+@require_POST
+def update_listing_status(request, pk):
+    """
+    Lets the owner flag their own listing as currently rented (for rent
+    listings) or sold (for sale listings), or set it back to available.
+    Purely informational — doesn't deactivate or hide the listing.
+    """
+    listing = get_object_or_404(VehicleListing, pk=pk, owner=request.user)
+    new_status = request.POST.get('availability_status')
+
+    valid_statuses = (
+        ['available', 'rented']
+        if listing.listing_type == 'rent'
+        else ['available', 'sold']
+    )
+
+    if new_status not in valid_statuses:
+        messages.error(request, "That status doesn't apply to this type of listing.")
+        return redirect('vehicle_detail', pk=pk)
+
+    listing.availability_status = new_status
+    listing.save(update_fields=['availability_status'])
+
+    status_label = dict(VehicleListing.AVAILABILITY_CHOICES).get(new_status, new_status)
+    messages.success(request, f'Listing marked as "{status_label}".')
+
+    next_url = request.POST.get('next')
+    return redirect(next_url or reverse('vehicle_detail', kwargs={'pk': pk}))
+
+
+# ─── SELLER IDENTITY VERIFICATION ─────────────────────────────────────────────
+@login_required
+@email_verified_required
+def verify_identity(request):
+    """
+    Sellers upload a government ID (driver's license / national ID) here
+    before they're allowed to post vehicles. The file goes straight to a
+    private Supabase Storage bucket — it is never saved to Django/Cloudinary
+    and never exposed via a public URL.
+    """
+    profile, _ = UserProfile.objects.get_or_create(user=request.user)
+
+    if profile.role != 'seller':
+        messages.info(request, "Identity verification is only required for seller accounts.")
+        return redirect('my_profile')
+
+    # Superusers bypass ID verification entirely.
+    if profile.is_id_exempt():
+        messages.info(request, "Superuser accounts are exempt from ID verification.")
+        return redirect('post_vehicle')
+
+    # Already approved — nothing more to submit. (Re-uploading would reset the
+    # status to pending and lock the seller out of posting.)
+    if profile.is_id_verified():
+        messages.info(request, "Your identity is already verified.")
+        return redirect('my_profile')
+
+    if request.method == 'POST':
+        form = SellerIDVerificationForm(request.POST, request.FILES)
+        if form.is_valid():
+            old_path = profile.id_document_path
+
+            path = upload_id_document(
+                user_id=request.user.id,
+                doc_type=form.cleaned_data['id_document_type'],
+                uploaded_file=form.cleaned_data['id_document'],
+            )
+
+            if path:
+                profile.id_document_type = form.cleaned_data['id_document_type']
+                profile.id_document_path = path
+                profile.id_verification_status = 'pending'
+                profile.id_submitted_at = timezone.now()
+                profile.id_reviewed_at = None
+                profile.id_rejection_reason = ''
+                profile.save()
+
+                if old_path and old_path != path:
+                    delete_id_document(old_path)
+
+                messages.success(
+                    request,
+                    "Your ID was submitted securely. An admin will review it — "
+                    "you'll be notified once you're verified and can post vehicles."
+                )
+                return redirect('my_profile')
+
+            messages.error(
+                request,
+                "We couldn't upload your ID right now. Please try again in a moment."
+            )
+    else:
+        form = SellerIDVerificationForm(
+            initial={'id_document_type': profile.id_document_type or 'drivers_license'}
+        )
+
+    return render(request, 'core/verify_identity.html', {
+        'form': form,
+        'profile': profile,
+    })
+
+
 # ─── POST / EDIT VEHICLE ──────────────────────────────────────────────────────
 @login_required
 @email_verified_required
@@ -621,6 +728,21 @@ def post_vehicle(request):
     if profile.role != 'seller':
         messages.error(request, "Only seller accounts can post vehicle listings.")
         return redirect('dashboard')
+
+    if not profile.can_post_vehicles():
+        if profile.id_verification_status == 'pending':
+            messages.info(
+                request,
+                "Your ID is still being reviewed by an admin. You'll be able to "
+                "post vehicles as soon as it's verified."
+            )
+            return redirect('my_profile')
+        messages.warning(
+            request,
+            "Please verify your identity first — upload a valid government ID "
+            "before posting a vehicle. This keeps AutoHub safe for buyers and renters."
+        )
+        return redirect('verify_identity')
 
     if request.method == 'POST':
         form = VehicleListingForm(request.POST)
@@ -741,13 +863,22 @@ def become_seller(request):
 
     if profile.role == 'seller':
         messages.info(request, "You're already a seller — you can post vehicles anytime!")
-        return redirect('post_vehicle')
+        if profile.can_post_vehicles():
+            return redirect('post_vehicle')
+        return redirect('my_profile' if profile.id_verification_status == 'pending' else 'verify_identity')
 
     if request.method == 'POST':
         profile.role = 'seller'
         profile.save()
-        messages.success(request, "You're now a seller! You can start posting vehicles.")
-        return redirect('post_vehicle')
+        if profile.is_id_exempt():
+            messages.success(request, "You're now a seller! Superusers are exempt from ID verification.")
+            return redirect('post_vehicle')
+        messages.success(
+            request,
+            "You're now a seller! One last step — verify your identity with a "
+            "government ID before you can post your first vehicle."
+        )
+        return redirect('verify_identity')
 
     return render(request, 'core/become_seller.html', {'profile': profile})
 
@@ -783,8 +914,12 @@ def admin_dashboard(request):
     recent_users = User.objects.order_by('-date_joined')[:10]
     recent_listings = VehicleListing.objects.filter(is_active=True).order_by('-created_at')[:10]
     unapproved = VehicleListing.objects.filter(is_approved=False, is_active=True)
+    pending_ids = UserProfile.objects.filter(
+        role='seller', id_verification_status='pending'
+    ).exclude(user__is_superuser=True).select_related('user').order_by('id_submitted_at')
 
     return render(request, 'core/admin_dashboard.html', {
+        'pending_ids': pending_ids,
         'total_users': total_users,
         'total_listings': total_listings,
         'for_sale': for_sale,
@@ -870,3 +1005,81 @@ def admin_remove_listing(request, pk):
 def admin_users(request):
     users = User.objects.all().order_by('-date_joined')
     return render(request, 'core/admin_users.html', {'users': users})
+
+
+# ─── ADMIN: VIEW A SELLER'S SUBMITTED ID (secure, time-limited link) ─────────
+@login_required
+@user_passes_test(is_admin)
+def admin_view_seller_id(request, user_id):
+    """
+    Generates a short-lived signed URL into the private Supabase bucket so
+    staff can review a seller's submitted ID. The link expires in 5 minutes
+    and is never stored or shown to anyone else.
+    """
+    target_user = get_object_or_404(User, pk=user_id)
+    profile, _ = UserProfile.objects.get_or_create(user=target_user)
+
+    if not profile.id_document_path:
+        messages.error(request, "This user hasn't submitted an ID.")
+        return redirect('admin_users')
+
+    url = get_signed_id_url(profile.id_document_path, expires_in=300)
+    if not url:
+        messages.error(request, "Couldn't generate a secure link to view this ID right now.")
+        return redirect('admin_users')
+
+    return redirect(url)
+
+
+# ─── ADMIN: APPROVE / REJECT A SELLER'S ID ───────────────────────────────────
+@login_required
+@user_passes_test(is_admin)
+@require_POST
+def admin_approve_seller_id(request, user_id):
+    target_user = get_object_or_404(User, pk=user_id)
+    profile, _ = UserProfile.objects.get_or_create(user=target_user)
+
+    if not profile.id_document_path:
+        messages.error(request, "This user hasn't submitted an ID.")
+        return redirect('admin_dashboard')
+
+    profile.id_verification_status = 'verified'
+    profile.id_reviewed_at = timezone.now()
+    profile.id_rejection_reason = ''
+    profile.save()
+
+    Notification.objects.create(
+        recipient=target_user,
+        notif_type='system',
+        title='Identity verified',
+        message='Your ID has been verified. You can now post vehicle listings on AutoHub.',
+    )
+    messages.success(request, f"@{target_user.username}'s ID was approved.")
+    return redirect('admin_dashboard')
+
+
+@login_required
+@user_passes_test(is_admin)
+@require_POST
+def admin_reject_seller_id(request, user_id):
+    target_user = get_object_or_404(User, pk=user_id)
+    profile, _ = UserProfile.objects.get_or_create(user=target_user)
+    reason = (request.POST.get('reason') or '').strip()
+
+    if not reason:
+        messages.error(request, "Please give a reason so the seller knows what to fix.")
+        return redirect('admin_dashboard')
+
+    profile.id_verification_status = 'rejected'
+    profile.id_reviewed_at = timezone.now()
+    profile.id_rejection_reason = reason
+    profile.save()
+
+    Notification.objects.create(
+        recipient=target_user,
+        notif_type='system',
+        title='Identity verification rejected',
+        message=f'Your ID could not be verified: {reason} Please upload a new one to try again.',
+    )
+    messages.success(request, f"@{target_user.username}'s ID was rejected.")
+    return redirect('admin_dashboard')

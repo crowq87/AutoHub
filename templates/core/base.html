@@ -83,6 +83,24 @@
             </a>
             <ul class="dropdown-menu dropdown-menu-end shadow">
               <li><a class="dropdown-item" href="{% url 'my_profile' %}"><i class="bi bi-person me-2"></i>My Profile</a></li>
+              {% if user.profile.role == 'seller' %}
+                <li>
+                  <a class="dropdown-item d-flex align-items-center justify-content-between" href="{% url 'verify_identity' %}">
+                    <span><i class="bi bi-patch-check me-2"></i>Verify Identity</span>
+                    {% if user.is_superuser %}
+                      <span class="badge bg-danger ms-2">Exempt</span>
+                    {% elif user.profile.id_verification_status == 'verified' %}
+                      <span class="badge bg-success ms-2">Verified</span>
+                    {% elif user.profile.id_verification_status == 'pending' %}
+                      <span class="badge bg-info text-dark ms-2">Pending Review</span>
+                    {% elif user.profile.id_verification_status == 'rejected' %}
+                      <span class="badge bg-danger ms-2">Rejected</span>
+                    {% else %}
+                      <span class="badge bg-warning text-dark ms-2">Required</span>
+                    {% endif %}
+                  </a>
+                </li>
+              {% endif %}
               {% if user.is_staff %}
                 <li><a class="dropdown-item" href="{% url 'admin_dashboard' %}"><i class="bi bi-shield-check me-2"></i>Admin Panel</a></li>
               {% endif %}

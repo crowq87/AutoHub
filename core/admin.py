@@ -12,7 +12,8 @@ from .models import (
 
 @admin.register(UserProfile)
 class UserProfileAdmin(admin.ModelAdmin):
-    list_display = ['user', 'first_name', 'last_name', 'phone_number', 'created_at']
+    list_display = ['user', 'first_name', 'last_name', 'phone_number', 'role', 'id_verification_status', 'created_at']
+    list_filter = ['role', 'id_verification_status']
     search_fields = ['user__username', 'first_name', 'last_name', 'phone_number']
 
 

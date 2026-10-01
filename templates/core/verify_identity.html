@@ -1,0 +1,123 @@
+{% extends 'core/base.html' %}
+{% block title %}Verify Identity — AutoHub{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+  <div class="row justify-content-center">
+    <div class="col-lg-7">
+      <div class="auth-card">
+
+        <div class="auth-header text-center">
+          <div class="auth-logo mb-3"><i class="bi bi-patch-check-fill"></i></div>
+          <h3 class="fw-800">Verify Your Identity</h3>
+          <p class="text-muted">
+            Sellers and renters must verify identity with a government ID
+            before posting vehicles — this protects buyers, renters, and
+            everyone else on AutoHub from scams and fake listings.
+          </p>
+        </div>
+
+        <div class="auth-body">
+
+          <!-- ============================================= -->
+          <!-- CURRENT STATUS -->
+          <!-- ============================================= -->
+
+          {% if profile.id_verification_status == 'verified' %}
+            <div class="alert d-flex align-items-center gap-2" style="background:#e9f9ee;border:1px solid #198754;color:#0f5132;">
+              <i class="bi bi-patch-check-fill fs-5"></i>
+              <div><strong>Verified.</strong> Your identity has been confirmed by our team.</div>
+            </div>
+          {% elif profile.id_verification_status == 'pending' %}
+            <div class="alert d-flex align-items-center gap-2" style="background:#e7f3ff;border:1px solid #0d6efd;color:#084298;">
+              <i class="bi bi-check-circle-fill fs-5"></i>
+              <div>
+                <strong>Pending admin review.</strong>
+                Submitted on {{ profile.id_submitted_at|date:"M d, Y" }}. Posting
+                unlocks once an admin verifies your ID — you'll get a notification.
+                You can still replace it below if you need to.
+              </div>
+            </div>
+          {% elif profile.id_verification_status == 'rejected' %}
+            <div class="alert d-flex align-items-center gap-2" style="background:#fdecec;border:1px solid #dc3545;color:#842029;">
+              <i class="bi bi-x-circle-fill fs-5"></i>
+              <div>
+                <strong>Your previous submission was rejected.</strong>
+                {% if profile.id_rejection_reason %}{{ profile.id_rejection_reason }}{% endif %}
+                Please upload a clearer or valid ID below.
+              </div>
+            </div>
+          {% else %}
+            <div class="alert d-flex align-items-center gap-2" style="background:#fff7e6;border:1px solid #f59e0b;color:#92400e;">
+              <i class="bi bi-exclamation-triangle-fill fs-5"></i>
+              <div><strong>Not submitted yet.</strong> Upload your ID below. An admin will review it before posting unlocks.</div>
+            </div>
+          {% endif %}
+
+          <!-- ============================================= -->
+          <!-- PRIVACY ASSURANCE -->
+          <!-- ============================================= -->
+
+          <div class="p-3 rounded-3 mb-4" style="background:var(--bg-subtle);border:1px solid var(--border);">
+            <h6 class="fw-700 mb-2"><i class="bi bi-shield-lock-fill me-2 text-primary"></i>Your privacy is protected</h6>
+            <ul class="list-unstyled mb-0 small text-muted">
+              <li class="mb-2 d-flex">
+                <i class="bi bi-check-circle-fill text-success me-2 mt-1"></i>
+                <span>Your ID is stored in a <strong>private, secure storage</strong> — completely separate from your public profile and listing photos.</span>
+              </li>
+              <li class="mb-2 d-flex">
+                <i class="bi bi-check-circle-fill text-success me-2 mt-1"></i>
+                <span>It is <strong>never shown publicly</strong> and never visible to other buyers, renters, or sellers.</span>
+              </li>
+              <li class="mb-2 d-flex">
+                <i class="bi bi-check-circle-fill text-success me-2 mt-1"></i>
+                <span>Only authorized AutoHub staff can access it, and only through short‑lived, time‑expiring secure links — never a direct public link.</span>
+              </li>
+              <li class="d-flex">
+                <i class="bi bi-check-circle-fill text-success me-2 mt-1"></i>
+                <span>Used solely to confirm you're a real person, to keep AutoHub safe for everyone.</span>
+              </li>
+            </ul>
+          </div>
+
+          <!-- ============================================= -->
+          <!-- UPLOAD FORM -->
+          <!-- ============================================= -->
+
+          <form method="post" enctype="multipart/form-data" novalidate>
+            {% csrf_token %}
+
+            <div class="mb-3">
+              <label class="form-label fw-600 small">{{ form.id_document_type.label }}</label>
+              {{ form.id_document_type }}
+              {% if form.id_document_type.errors %}
+                <div class="text-danger small mt-1">{{ form.id_document_type.errors.0 }}</div>
+              {% endif %}
+            </div>
+
+            <div class="mb-3">
+              <label class="form-label fw-600 small">{{ form.id_document.label }}</label>
+              {{ form.id_document }}
+              <div class="form-text">JPG, PNG, WEBP, or PDF — up to 8MB. Make sure all details are clearly readable.</div>
+              {% if form.id_document.errors %}
+                <div class="text-danger small mt-1">{{ form.id_document.errors.0 }}</div>
+              {% endif %}
+            </div>
+
+            <button type="submit" class="btn btn-primary w-100 btn-lg fw-600">
+              <i class="bi bi-upload me-2"></i>
+              {% if profile.id_verification_status == 'pending' %}Replace My ID{% else %}Submit ID Securely{% endif %}
+            </button>
+          </form>
+
+          <p class="text-center text-muted mt-3 mb-0" style="font-size: 0.85rem;">
+            <i class="bi bi-lock-fill me-1"></i>
+            Uploaded directly to a private, encrypted storage bucket.
+          </p>
+
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

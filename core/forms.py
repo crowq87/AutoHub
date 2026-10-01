@@ -216,6 +216,32 @@ class VehicleRatingForm(forms.ModelForm):
         }
 
 
+class SellerIDVerificationForm(forms.Form):
+    id_document_type = forms.ChoiceField(
+        choices=UserProfile.ID_DOC_TYPE_CHOICES,
+        widget=forms.Select(attrs={'class': 'form-select'}),
+        label="ID type",
+    )
+    id_document = forms.FileField(
+        label="Upload a clear photo or scan of your ID",
+        widget=forms.ClearableFileInput(attrs={
+            'class': 'form-control',
+            'accept': 'image/jpeg,image/png,image/webp,.pdf',
+        }),
+    )
+
+    MAX_FILE_SIZE = 8 * 1024 * 1024  # 8 MB
+    ALLOWED_CONTENT_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'application/pdf']
+
+    def clean_id_document(self):
+        f = self.cleaned_data['id_document']
+        if f.size > self.MAX_FILE_SIZE:
+            raise ValidationError("That file is too large. Please upload a file under 8MB.")
+        if f.content_type not in self.ALLOWED_CONTENT_TYPES:
+            raise ValidationError("Please upload a JPG, PNG, WEBP image, or a PDF.")
+        return f
+
+
 class SearchFilterForm(forms.Form):
     LISTING_TYPE_CHOICES = [('', 'All Types'), ('sale', 'For Sale'), ('rent', 'For Rent')]
     FUEL_CHOICES = [('', 'All Fuel'), ('gasoline', 'Gasoline'), ('diesel', 'Diesel'), ('electric', 'Electric'), ('hybrid', 'Hybrid'), ('lpg', 'LPG')]

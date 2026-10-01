@@ -21,6 +21,14 @@ SECRET_KEY = config('SECRET_KEY', default='django-insecure-autohub-change-this-i
 CSRF_TRUSTED_ORIGINS = config('CSRF_TRUSTED_ORIGINS', default='', cast=Csv())
 FIREBASE_WEB_API_KEY = config('FIREBASE_WEB_API_KEY')
 
+# Supabase Storage — used ONLY for seller identity documents (driver's
+# license / national ID). Kept entirely separate from Cloudinary (which
+# handles public listing photos) because ID documents are sensitive and
+# must live in a private, non-public bucket.
+SUPABASE_URL = config('SUPABASE_URL')
+SUPABASE_SERVICE_ROLE_KEY = config('SUPABASE_SERVICE_ROLE_KEY')
+SUPABASE_ID_BUCKET = config('SUPABASE_ID_BUCKET', default='seller-ids')
+
 DEBUG = config('DEBUG', default=True, cast=bool)
 
 ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='localhost,127.0.0.1', cast=Csv())

@@ -26,6 +26,61 @@ class UserProfile(models.Model):
     bio = models.TextField(blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
+    # ── Seller identity verification ──
+    # The actual ID file is NEVER stored in Django/Cloudinary — it lives in a
+    # private Supabase Storage bucket, and only its storage path is kept
+    # here. Access to the real file requires a short-lived signed URL
+    # generated server-side (see core/supabase_utils.py), so it is never
+    # publicly reachable.
+    ID_DOC_TYPE_CHOICES = [
+        ('drivers_license', "Driver's License"),
+        ('national_id', 'National ID (PhilSys)'),
+        ('other_gov_id', 'Other Government-Issued ID'),
+    ]
+
+    ID_VERIFICATION_CHOICES = [
+        ('not_submitted', 'Not Submitted'),
+        ('pending', 'Pending Admin Review'),
+        ('verified', 'Verified'),
+        ('rejected', 'Rejected'),
+    ]
+
+    id_document_type = models.CharField(
+        max_length=20, choices=ID_DOC_TYPE_CHOICES, blank=True
+    )
+    id_document_path = models.CharField(
+        max_length=255,
+        blank=True,
+        help_text='Storage path/key inside the private Supabase bucket. Never a public URL.',
+    )
+    id_verification_status = models.CharField(
+        max_length=20, choices=ID_VERIFICATION_CHOICES, default='not_submitted'
+    )
+    id_submitted_at = models.DateTimeField(null=True, blank=True)
+    id_reviewed_at = models.DateTimeField(null=True, blank=True)
+    id_rejection_reason = models.TextField(blank=True)
+
+    def has_submitted_id(self):
+        """True once an ID has been uploaded (awaiting review or already
+        verified). Submission alone does NOT unlock posting — see
+        can_post_vehicles()."""
+        return self.id_verification_status in ('pending', 'verified')
+
+    def is_id_verified(self):
+        """True only after an admin has reviewed and approved the ID."""
+        return self.id_verification_status == 'verified'
+
+    def is_id_exempt(self):
+        """Superusers bypass ID verification entirely."""
+        return self.user.is_superuser
+
+    def can_post_vehicles(self):
+        """Sellers may post only once an admin has verified their ID.
+        Superusers are exempt from ID verification."""
+        if self.role != 'seller':
+            return False
+        return self.is_id_exempt() or self.is_id_verified()
+
     def average_rating(self):
         """Average of all ratings this user has received as a seller/renter, or None if unrated."""
         result = self.user.received_ratings.aggregate(avg=Avg('score'))['avg']
@@ -222,6 +277,19 @@ class VehicleListing(models.Model):
 
     
 
+    # ── Availability status ──
+    AVAILABILITY_CHOICES = [
+        ('available', 'Available'),
+        ('rented', 'Currently Rented'),
+        ('sold', 'Sold'),
+    ]
+    availability_status = models.CharField(
+        max_length=20,
+        choices=AVAILABILITY_CHOICES,
+        default='available',
+        help_text='Lets buyers/renters know at a glance if this vehicle is still available.',
+    )
+
     # ── Status ──
     is_active = models.BooleanField(default=True)
     # New listings must be reviewed by an admin before they appear publicly.
@@ -243,6 +311,17 @@ class VehicleListing(models.Model):
 
     def rating_count(self):
         return self.vehicle_ratings.count()
+
+    def is_available(self):
+        return self.availability_status == 'available'
+
+    def status_badge_css(self):
+        """CSS color tag used by templates for the status badge."""
+        return {
+            'available': 'success',
+            'rented': 'warning',
+            'sold': 'danger',
+        }.get(self.availability_status, 'secondary')
 
     class Meta:
         ordering = ['-created_at']

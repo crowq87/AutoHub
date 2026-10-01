@@ -48,10 +48,28 @@
         {% else %}No Vehicles Found{% endif %}
       </h5>
       {% if user.profile.role == 'seller' %}
-<a href="{% url 'post_vehicle' %}" class="btn btn-warning fw-600">
-  <i class="bi bi-plus-circle me-1"></i> Post Your Vehicle
-</a>
-{% else %}
+        {% if user.profile.can_post_vehicles %}
+          <a href="{% url 'post_vehicle' %}" class="btn btn-warning fw-600">
+            <i class="bi bi-plus-circle me-1"></i> Post Your Vehicle
+          </a>
+        {% elif user.profile.id_verification_status == 'pending' %}
+          <a
+            href="{% url 'verify_identity' %}"
+            class="btn btn-secondary fw-600"
+            title="An admin is reviewing your ID"
+          >
+            <i class="bi bi-hourglass-split me-1"></i> ID Under Review
+          </a>
+        {% else %}
+          <a
+            href="{% url 'verify_identity' %}"
+            class="btn btn-secondary fw-600"
+            title="Verify your identity first to unlock posting"
+          >
+            <i class="bi bi-lock-fill me-1"></i> Verify ID to Post
+          </a>
+        {% endif %}
+      {% else %}
 <a href="{% url 'become_seller' %}" class="btn btn-outline-warning fw-600">
   <i class="bi bi-shop me-1"></i> Become a Seller
 </a>
@@ -66,11 +84,31 @@
         <div class="vehicle-card h-100">
           <div class="vehicle-card-img">
             {% if vehicle.get_main_photo %}
-              <img src="{{ vehicle.get_main_photo }}" alt="{{ vehicle.brand }} {{ vehicle.model }}">
+              <img
+                src="{{ vehicle.get_main_photo }}"
+                alt="{{ vehicle.brand }} {{ vehicle.model }}"
+                class="{% if vehicle.availability_status != 'available' %}vehicle-img-unavailable{% endif %}"
+              >
             {% else %}
-              <div class="no-photo"><i class="bi bi-car-front-fill"></i></div>
+              <div class="no-photo {% if vehicle.availability_status != 'available' %}vehicle-img-unavailable{% endif %}"><i class="bi bi-car-front-fill"></i></div>
+            {% endif %}
+            {% if vehicle.availability_status != 'available' %}
+              <div class="vehicle-unavailable-overlay">
+                <span class="vehicle-unavailable-text">
+                  <i class="bi {% if vehicle.availability_status == 'sold' %}bi-x-circle-fill{% else %}bi-flag-fill{% endif %} me-1"></i>
+                  {{ vehicle.get_availability_status_display }}
+                </span>
+              </div>
             {% endif %}
             <span class="badge-listing-type badge-{{ vehicle.listing_type }}">{{ vehicle.get_listing_type_display }}</span>
+            {% if vehicle.availability_status != 'available' %}
+              <span
+                class="badge-listing-type"
+                style="right:10px;left:auto;background:{% if vehicle.availability_status == 'sold' %}#dc3545{% else %}#f59e0b{% endif %};"
+              >
+                {{ vehicle.get_availability_status_display }}
+              </span>
+            {% endif %}
             {% if vehicle.photos.count > 1 %}
               <span class="photo-count"><i class="bi bi-images"></i> {{ vehicle.photos.count }}</span>
             {% endif %}
@@ -765,5 +803,38 @@ document.addEventListener('DOMContentLoaded', function () {
 });
 </script>
 
-{% endblock %}
 
+<style>
+
+    /* Gray out the photo for sold/rented listings so it reads as
+       unavailable at a glance, without needing to read the badge. */
+    .vehicle-img-unavailable {
+        filter: grayscale(100%);
+        opacity: 0.55;
+    }
+
+    .vehicle-unavailable-overlay {
+        position: absolute;
+        inset: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: rgba(0, 0, 0, 0.25);
+        z-index: 1;
+        pointer-events: none;
+    }
+
+    .vehicle-unavailable-text {
+        background: rgba(0, 0, 0, 0.65);
+        color: #fff;
+        font-weight: 700;
+        font-size: 0.85rem;
+        letter-spacing: 0.03em;
+        text-transform: uppercase;
+        padding: 6px 16px;
+        border-radius: 20px;
+    }
+
+</style>
+
+{% endblock %}
