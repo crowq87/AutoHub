@@ -109,6 +109,14 @@ EMAIL_HOST_PASSWORD = config('EMAIL_HOST_PASSWORD')
 
 DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
 
+# Transactional email over HTTPS (Brevo). Render's free tier blocks outbound
+# SMTP ports (25/465/587), so Gmail SMTP above can't work there. When
+# BREVO_API_KEY is set, core/email_utils.py sends through Brevo's HTTPS API
+# instead. Leave it empty locally to keep using the SMTP settings above.
+BREVO_API_KEY = config('BREVO_API_KEY', default='')
+BREVO_SENDER_EMAIL = config('BREVO_SENDER_EMAIL', default=EMAIL_HOST_USER)
+BREVO_SENDER_NAME = config('BREVO_SENDER_NAME', default='AutoHub')
+
 LANGUAGE_CODE = 'en-us'
 TIME_ZONE = 'Asia/Manila'
 USE_I18N = True

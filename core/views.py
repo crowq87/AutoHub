@@ -38,6 +38,7 @@ from django.utils import timezone
 from .supabase_utils import upload_id_document, get_signed_id_url, delete_id_document
 from firebase_admin import auth as firebase_auth
 from .firebase_utils import firebase_verify_password, send_firebase_verification_email, firebase_is_email_verified
+from .email_utils import send_email
 from functools import wraps
 # ─── EMAIL VERIFICATION GATE ──────────────────────────────────────────────────
 def email_verified_required(view_func):
@@ -91,13 +92,21 @@ def signup_view(request):
                     form.add_error(None, error)
             else:
                 login(request, user)
-                send_firebase_verification_email(user.email)
-                messages.success(
-                    request,
-                    f"Welcome to AutoHub, {user.first_name}! We've sent a verification link to "
-                    f"{user.email} — please confirm it before posting, buying/renting, or "
-                    "messaging sellers."
-                )
+                email_sent = send_firebase_verification_email(user.email)
+                if email_sent:
+                    messages.success(
+                        request,
+                        f"Welcome to AutoHub, {user.first_name}! We've sent a verification link to "
+                        f"{user.email} — please confirm it before posting, buying/renting, or "
+                        "messaging sellers."
+                    )
+                else:
+                    messages.warning(
+                        request,
+                        f"Welcome to AutoHub, {user.first_name}! Your account is created, but we "
+                        "couldn't send the verification email just now. Please use the "
+                        "\"Resend\" button below to try again."
+                    )
                 return redirect('verify_email')
     else:
         form = SignUpForm()
@@ -203,14 +212,13 @@ def forgot_password_view(request):
                 #     handle_code_in_app=False,
                 # )
             )
-            send_mail(
+            send_email(
                 subject="Reset your AutoHub password",
-                message=(
+                body=(
                     f"Hi,\n\nClick the link below to reset your AutoHub password:\n\n{link}\n\n"
                     "If you didn't request this, you can safely ignore this email."
                 ),
-                from_email=None,  # uses DEFAULT_FROM_EMAIL
-                recipient_list=[email],
+                to_email=email,
             )
         except Exception as e:
             # Don't reveal whether the email exists — same page renders either way

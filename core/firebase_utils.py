@@ -1,6 +1,6 @@
 import requests
 from django.conf import settings
-from django.core.mail import send_mail
+from .email_utils import send_email
 from firebase_admin import auth as firebase_auth
 import socket
 import urllib3.util.connection as urllib3_cn
@@ -46,20 +46,19 @@ def send_firebase_verification_email(email):
     """
     try:
         link = firebase_auth.generate_email_verification_link(email)
-        send_mail(
-            subject="Verify your AutoHub email address",
-            message=(
-                f"Hi,\n\nPlease confirm your email address to unlock posting, "
-                f"buying/renting, and messaging sellers on AutoHub:\n\n{link}\n\n"
-                "If you didn't create an AutoHub account, you can safely ignore this email."
-            ),
-            from_email=None,  # uses DEFAULT_FROM_EMAIL
-            recipient_list=[email],
-        )
-        return True
     except Exception as e:
-        print(f"[Firebase] verification email failed for {email}: {e}")
+        print(f"[Firebase] could not generate verification link for {email}: {e}")
         return False
+
+    return send_email(
+        subject="Verify your AutoHub email address",
+        body=(
+            f"Hi,\n\nPlease confirm your email address to unlock posting, "
+            f"buying/renting, and messaging sellers on AutoHub:\n\n{link}\n\n"
+            "If you didn't create an AutoHub account, you can safely ignore this email."
+        ),
+        to_email=email,
+    )
 
 
 def firebase_is_email_verified(firebase_uid):
