@@ -49,6 +49,8 @@ def send_email(subject, body, to_email):
         if settings.BREVO_API_KEY:
             return _send_via_brevo(subject, body, to_email)
 
+        print("[Email] BREVO_API_KEY is not set on this server - "
+              "falling back to SMTP (blocked on Render's free tier).")
         send_mail(
             subject=subject,
             message=body,
