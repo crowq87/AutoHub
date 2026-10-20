@@ -90,6 +90,17 @@ urlpatterns = [
     ),
 
     path(
+        'vehicles/<int:pk>/chat/poll/',
+        views.chat_poll,
+        name='chat_poll'
+    ),
+
+    # Global chat widget
+    path('chat/inbox/', views.chat_inbox, name='chat_inbox'),
+    path('chat/<int:conv_id>/thread/', views.chat_thread, name='chat_thread'),
+    path('chat/<int:conv_id>/send/', views.chat_send, name='chat_send'),
+
+    path(
         'vehicles/post/',
         views.post_vehicle,
         name='post_vehicle'

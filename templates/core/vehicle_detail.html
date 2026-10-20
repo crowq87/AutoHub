@@ -6,6 +6,22 @@
 {% endblock %}
 
 
+{# This page has its own per-vehicle chat bubble, so hide the global one #}
+{% block global_chat %}{% endblock %}
+
+{% block meta %}
+{% url 'vehicle_detail' listing.pk as share_path %}
+{% with cover=listing.photos.all.0 %}
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="AutoHub">
+<meta property="og:title" content="{{ listing.year }} {{ listing.brand }} {{ listing.model }} — ₱{{ listing.price|floatformat:0 }}">
+<meta property="og:description" content="{{ listing.get_listing_type_display }} · {{ listing.description|striptags|truncatechars:150 }}">
+<meta property="og:url" content="{{ request.scheme }}://{{ request.get_host }}{{ share_path }}">
+{% if cover %}<meta property="og:image" content="{% if cover.image.url|slice:':4' == 'http' %}{{ cover.image.url }}{% else %}{{ request.scheme }}://{{ request.get_host }}{{ cover.image.url }}{% endif %}">{% endif %}
+<meta name="twitter:card" content="summary_large_image">
+{% endwith %}
+{% endblock %}
+
 {% block content %}
 
 <div class="container py-4" style="background:var(--bg-body);">
@@ -333,6 +349,74 @@
                             {{ listing.get_listing_type_display }}
 
                         </span>
+
+                        <!-- SHARE -->
+                        <div class="dropdown d-inline-block ms-2 align-middle" id="shareWrap" data-title="{{ listing.year }} {{ listing.brand }} {{ listing.model }} — ₱{{ listing.price|floatformat:0 }}" data-path="{% url 'vehicle_detail' listing.pk %}">
+                            <button type="button" class="btn btn-sm btn-outline-primary fw-600 rounded-pill px-3" id="shareBtn" data-bs-toggle="dropdown" aria-expanded="false">
+                                <i class="bi bi-share-fill me-1"></i> Share
+                            </button>
+                            <ul class="dropdown-menu shadow share-menu">
+                                <li><a class="dropdown-item" data-share="facebook" href="#" target="_blank" rel="noopener"><i class="bi bi-facebook me-2" style="color:#1877f2;"></i>Facebook</a></li>
+                                <li><a class="dropdown-item" data-share="messenger" href="#" target="_blank" rel="noopener"><i class="bi bi-messenger me-2" style="color:#0084ff;"></i>Messenger</a></li>
+                                <li><a class="dropdown-item" data-share="whatsapp" href="#" target="_blank" rel="noopener"><i class="bi bi-whatsapp me-2" style="color:#25d366;"></i>WhatsApp</a></li>
+                                <li><a class="dropdown-item" data-share="viber" href="#"><i class="bi bi-telephone-fill me-2" style="color:#7360f2;"></i>Viber</a></li>
+                                <li><a class="dropdown-item" data-share="telegram" href="#" target="_blank" rel="noopener"><i class="bi bi-telegram me-2" style="color:#27a7e7;"></i>Telegram</a></li>
+                                <li><a class="dropdown-item" data-share="x" href="#" target="_blank" rel="noopener"><i class="bi bi-twitter-x me-2"></i>X (Twitter)</a></li>
+                                <li><a class="dropdown-item" data-share="email" href="#"><i class="bi bi-envelope-fill me-2 text-secondary"></i>Email</a></li>
+                                <li><hr class="dropdown-divider"></li>
+                                <li><button type="button" class="dropdown-item" id="shareCopy"><i class="bi bi-link-45deg me-2"></i><span>Copy link</span></button></li>
+                                <li id="shareNativeItem" hidden><button type="button" class="dropdown-item" id="shareNative"><i class="bi bi-box-arrow-up me-2"></i>More options…</button></li>
+                            </ul>
+                        </div>
+                        <script>
+                        (function () {
+                            var wrap = document.getElementById('shareWrap');
+                            if (!wrap) { return; }
+                            var url   = window.location.origin + wrap.dataset.path;
+                            var title = wrap.dataset.title;
+                            var u = encodeURIComponent(url), t = encodeURIComponent(title);
+                            var links = {
+                                facebook:  'https://www.facebook.com/sharer/sharer.php?u=' + u,
+                                messenger: 'https://www.facebook.com/dialog/send?app_id=291494419107518&link=' + u + '&redirect_uri=' + u,
+                                whatsapp:  'https://wa.me/?text=' + encodeURIComponent(title + ' ' + url),
+                                viber:     'viber://forward?text=' + encodeURIComponent(title + ' ' + url),
+                                telegram:  'https://t.me/share/url?url=' + u + '&text=' + t,
+                                x:         'https://twitter.com/intent/tweet?url=' + u + '&text=' + t,
+                                email:     'mailto:?subject=' + t + '&body=' + encodeURIComponent('Check out this vehicle on AutoHub: ' + url)
+                            };
+                            wrap.querySelectorAll('[data-share]').forEach(function (a) {
+                                a.href = links[a.dataset.share];
+                            });
+
+                            var copyBtn = document.getElementById('shareCopy');
+                            copyBtn.addEventListener('click', function (e) {
+                                e.stopPropagation();
+                                var label = copyBtn.querySelector('span');
+                                function done() {
+                                    label.textContent = 'Link copied!';
+                                    setTimeout(function () { label.textContent = 'Copy link'; }, 1800);
+                                }
+                                if (navigator.clipboard && window.isSecureContext) {
+                                    navigator.clipboard.writeText(url).then(done);
+                                } else {
+                                    var ta = document.createElement('textarea');
+                                    ta.value = url;
+                                    document.body.appendChild(ta);
+                                    ta.select();
+                                    try { document.execCommand('copy'); done(); } catch (err) {}
+                                    document.body.removeChild(ta);
+                                }
+                            });
+
+                            // Phones/tablets: also offer the device's own share sheet.
+                            if (navigator.share) {
+                                document.getElementById('shareNativeItem').hidden = false;
+                                document.getElementById('shareNative').addEventListener('click', function () {
+                                    navigator.share({ title: title, url: url }).catch(function () {});
+                                });
+                            }
+                        })();
+                        </script>
 
                     </div>
 
@@ -1272,348 +1356,19 @@
 
 
                 <!-- ========================================= -->
-                <!-- PRIVATE BUYER / SELLER CHAT -->
+                <!-- PRIVATE BUYER / SELLER CHAT                -->
+                <!-- The chat itself is the floating panel near -->
+                <!-- the bottom of this template (bubble toggle) -->
                 <!-- ========================================= -->
 
-                {% if user.is_authenticated %}
+                {% if user.is_authenticated and user != listing.owner and not user.profile.email_verified %}
 
-                    {% if user == listing.owner %}
-
-                        {% if user.profile.email_verified %}
-
-                            <div id="vehicle-chat" class="mt-3">
-
-                                <div
-                                    class="chat-box"
-                                    style="
-                                        border:1px solid var(--border);
-                                        border-radius:18px;
-                                        overflow:hidden;
-                                        background:var(--bg-body);
-                                    "
-                                >
-
-                                    <div
-                                        class="p-3"
-                                        style="
-                                            background:var(--bg-subtle);
-                                            border-bottom:1px solid var(--border);
-                                        "
-                                    >
-                                        <div class="fw-700" style="color:var(--text-primary);">
-                                            <i class="bi bi-chat-dots-fill me-2 text-primary"></i>
-                                            Buyer Messages
-                                        </div>
-                                        <small class="text-muted">
-                                            Chat with people interested in this vehicle.
-                                        </small>
-                                    </div>
-
-                                    {% if conversations %}
-
-                                        <div class="p-2" style="border-bottom:1px solid var(--border);">
-                                            <div class="d-flex flex-wrap gap-2">
-                                                {% for conv in conversations %}
-                                                    <a
-                                                        href="{% url 'vehicle_detail' listing.pk %}?conversation={{ conv.id }}#vehicle-chat"
-                                                        class="btn btn-sm {% if selected_conversation and selected_conversation.id == conv.id %}btn-primary{% else %}btn-outline-secondary{% endif %}"
-                                                    >
-                                                        <i class="bi bi-person-circle me-1"></i>
-                                                        {{ conv.customer.get_full_name|default:conv.customer.username }}
-                                                    </a>
-                                                {% endfor %}
-                                            </div>
-                                        </div>
-
-                                        {% if selected_conversation %}
-
-                                            <div
-                                                class="px-3 py-2"
-                                                style="
-                                                    background:var(--bg-subtle);
-                                                    border-bottom:1px solid var(--border);
-                                                "
-                                            >
-                                                <small class="text-muted">Conversation with</small>
-                                                <div class="fw-700" style="color:var(--text-primary);">
-                                                    {{ selected_conversation.customer.get_full_name|default:selected_conversation.customer.username }}
-                                                </div>
-                                            </div>
-
-                                            <div
-                                                id="chatMessages"
-                                                style="height:320px; overflow-y:auto; padding:15px;"
-                                            >
-                                                {% for chat in chat_messages %}
-                                                    {% if chat.sender == user %}
-                                                        <div class="d-flex justify-content-end mb-3">
-                                                            <div style="max-width:82%;">
-                                                                <div
-                                                                    class="p-3"
-                                                                    style="
-                                                                        background:#2563eb;
-                                                                        color:white;
-                                                                        border-radius:16px 16px 4px 16px;
-                                                                        word-break:break-word;
-                                                                    "
-                                                                >
-                                                                    {{ chat.message|linebreaksbr }}
-                                                                </div>
-                                                                <div class="text-end text-muted mt-1" style="font-size:.68rem;">
-                                                                    {{ chat.created_at|date:"M d, Y g:i A" }}
-                                                                </div>
-                                                            </div>
-                                                        </div>
-                                                    {% else %}
-                                                        <div class="d-flex justify-content-start mb-3">
-                                                            <div style="max-width:82%;">
-                                                                <div
-                                                                    class="p-3"
-                                                                    style="
-                                                                        background:var(--bg-subtle);
-                                                                        color:var(--text-primary);
-                                                                        border:1px solid var(--border);
-                                                                        border-radius:16px 16px 16px 4px;
-                                                                        word-break:break-word;
-                                                                    "
-                                                                >
-                                                                    {{ chat.message|linebreaksbr }}
-                                                                </div>
-                                                                <div class="text-muted mt-1" style="font-size:.68rem;">
-                                                                    {{ chat.created_at|date:"M d, Y g:i A" }}
-                                                                </div>
-                                                            </div>
-                                                        </div>
-                                                    {% endif %}
-                                                {% empty %}
-                                                    <div class="h-100 d-flex flex-column align-items-center justify-content-center text-center">
-                                                        <i class="bi bi-chat-dots" style="font-size:2.5rem;color:var(--text-faint);"></i>
-                                                        <p class="fw-700 mt-2 mb-1" style="color:var(--text-primary);">
-                                                            Start a conversation
-                                                        </p>
-                                                    </div>
-                                                {% endfor %}
-                                            </div>
-
-                                            <div class="p-3" style="border-top:1px solid var(--border);">
-                                                <form method="POST" action="{% url 'send_chat_message' listing.pk %}">
-                                                    {% csrf_token %}
-                                                    <input type="hidden" name="conversation_id" value="{{ selected_conversation.id }}">
-                                                    <div class="input-group">
-                                                        <textarea
-                                                            name="message"
-                                                            class="form-control"
-                                                            rows="2"
-                                                            maxlength="2000"
-                                                            required
-                                                            placeholder="Reply to this buyer..."
-                                                            style="resize:none;"
-                                                        ></textarea>
-                                                        <button type="submit" class="btn btn-primary px-3">
-                                                            <i class="bi bi-send-fill"></i>
-                                                        </button>
-                                                    </div>
-                                                </form>
-                                            </div>
-
-                                        {% endif %}
-
-                                    {% else %}
-
-                                        <div class="p-4 text-center">
-                                            <i class="bi bi-chat-dots" style="font-size:2.5rem;color:var(--text-faint);"></i>
-                                            <p class="fw-700 mt-2 mb-1" style="color:var(--text-primary);">
-                                                No messages yet
-                                            </p>
-                                            <small class="text-muted">
-                                                Buyer conversations about this vehicle will appear here.
-                                            </small>
-                                        </div>
-
-                                    {% endif %}
-
-                                </div>
-
-                            </div>
-
-                        {% endif %}
-
-                    {% elif user.profile.email_verified %}
-
-                        <div id="vehicle-chat" class="mt-3">
-
-                            <div
-                                class="chat-box"
-                                style="
-                                    border:1px solid var(--border);
-                                    border-radius:18px;
-                                    overflow:hidden;
-                                    background:var(--bg-body);
-                                "
-                            >
-
-                                <div
-                                    class="p-3 d-flex align-items-center justify-content-between"
-                                    style="
-                                        background:var(--bg-subtle);
-                                        border-bottom:1px solid var(--border);
-                                    "
-                                >
-                                    <div class="d-flex align-items-center gap-2">
-
-                                        {% if listing.owner.profile.profile_picture %}
-                                            <img
-                                                src="{{ listing.owner.profile.profile_picture.url }}"
-                                                class="rounded-circle"
-                                                style="width:42px;height:42px;object-fit:cover;"
-                                                alt="Seller"
-                                            >
-                                        {% else %}
-                                            <div
-                                                class="rounded-circle d-flex align-items-center justify-content-center"
-                                                style="
-                                                    width:42px;
-                                                    height:42px;
-                                                    background:var(--bg-card);
-                                                    color:var(--text-secondary);
-                                                "
-                                            >
-                                                <i class="bi bi-person-fill"></i>
-                                            </div>
-                                        {% endif %}
-
-                                        <div>
-                                            <div class="fw-700" style="color:var(--text-primary);">
-                                                {{ listing.owner.profile.get_full_name|default:listing.owner.username }}
-                                            </div>
-                                            <small class="text-muted">
-                                                Chat about {{ listing.year }} {{ listing.brand }} {{ listing.model }}
-                                            </small>
-                                        </div>
-                                    </div>
-
-                                    <span class="badge bg-success">
-                                        <i class="bi bi-circle-fill me-1" style="font-size:.5rem;"></i>
-                                        Chat
-                                    </span>
-                                </div>
-
-                                <div
-                                    id="chatMessages"
-                                    style="height:320px;overflow-y:auto;padding:15px;"
-                                >
-                                    {% for chat in chat_messages %}
-
-                                        {% if chat.sender == user %}
-
-                                            <div class="d-flex justify-content-end mb-3">
-                                                <div style="max-width:82%;">
-                                                    <div
-                                                        class="p-3"
-                                                        style="
-                                                            background:#2563eb;
-                                                            color:white;
-                                                            border-radius:16px 16px 4px 16px;
-                                                            word-break:break-word;
-                                                        "
-                                                    >
-                                                        {{ chat.message|linebreaksbr }}
-                                                    </div>
-                                                    <div class="text-end text-muted mt-1" style="font-size:.68rem;">
-                                                        {{ chat.created_at|date:"M d, Y g:i A" }}
-                                                    </div>
-                                                </div>
-                                            </div>
-
-                                        {% else %}
-
-                                            <div class="d-flex justify-content-start mb-3">
-                                                <div style="max-width:82%;">
-                                                    <div
-                                                        class="p-3"
-                                                        style="
-                                                            background:var(--bg-subtle);
-                                                            color:var(--text-primary);
-                                                            border:1px solid var(--border);
-                                                            border-radius:16px 16px 16px 4px;
-                                                            word-break:break-word;
-                                                        "
-                                                    >
-                                                        {{ chat.message|linebreaksbr }}
-                                                    </div>
-                                                    <div class="text-muted mt-1" style="font-size:.68rem;">
-                                                        {{ chat.created_at|date:"M d, Y g:i A" }}
-                                                    </div>
-                                                </div>
-                                            </div>
-
-                                        {% endif %}
-
-                                    {% empty %}
-
-                                        <div class="h-100 d-flex flex-column align-items-center justify-content-center text-center">
-                                            <i class="bi bi-chat-dots" style="font-size:2.5rem;color:var(--text-faint);"></i>
-                                            <p class="fw-700 mt-2 mb-1" style="color:var(--text-primary);">
-                                                Start a conversation
-                                            </p>
-                                            <small class="text-muted">
-                                                Ask about availability, condition, viewing, or location.
-                                            </small>
-                                        </div>
-
-                                    {% endfor %}
-                                </div>
-
-                                <div class="p-3" style="border-top:1px solid var(--border);">
-                                    <form method="POST" action="{% url 'send_chat_message' listing.pk %}">
-                                        {% csrf_token %}
-
-                                        <div class="input-group">
-                                            <textarea
-                                                name="message"
-                                                class="form-control"
-                                                rows="2"
-                                                maxlength="2000"
-                                                required
-                                                placeholder="Type a message to the seller..."
-                                                style="resize:none;"
-                                            ></textarea>
-
-                                            <button type="submit" class="btn btn-primary px-3">
-                                                <i class="bi bi-send-fill"></i>
-                                            </button>
-                                        </div>
-
-                                        <small class="text-muted d-block mt-2" style="font-size:.7rem;">
-                                            <i class="bi bi-shield-check me-1"></i>
-                                            Your conversation is about this vehicle only.
-                                        </small>
-                                    </form>
-                                </div>
-
-                            </div>
-
-                        </div>
-
-                    {% else %}
-
-                        <a href="{% url 'verify_email' %}" class="btn btn-outline-primary fw-600 mt-2">
-                            <i class="bi bi-envelope-check me-2"></i>
-                            Verify Email to Chat
-                        </a>
-
-                    {% endif %}
+                    <a href="{% url 'verify_email' %}" class="btn btn-outline-primary fw-600 mt-2">
+                        <i class="bi bi-envelope-check me-2"></i>
+                        Verify Email to Chat
+                    </a>
 
                 {% endif %}
-
-                <script>
-                    document.addEventListener('DOMContentLoaded', function () {
-                        const box = document.getElementById('chatMessages');
-                        if (box) {
-                            box.scrollTop = box.scrollHeight;
-                        }
-                    });
-                </script>
 
 
                 <!-- ========================================= -->
@@ -1753,25 +1508,157 @@
 
 
 <!-- ===================================================== -->
-<!-- FLOATING CHAT BUBBLE -->
+<!-- FLOATING CHAT BUBBLE + CHAT PANEL                      -->
+<!-- Click the bubble to show the chat, click again to hide -->
 <!-- ===================================================== -->
 
-{% if user != listing.owner and user.profile.email_verified %}
+{% if user.is_authenticated and user.profile.email_verified %}
+
+    <div
+        id="vehicle-chat"
+        class="vehicle-chat-panel"
+        role="dialog"
+        aria-label="Vehicle chat"
+        data-poll-url="{% url 'chat_poll' listing.pk %}"
+        data-is-owner="{% if user == listing.owner %}1{% else %}0{% endif %}"
+        data-initial-conversation="{{ request.GET.conversation }}"
+    >
+
+        <!-- Header -->
+        <div class="vcp-header">
+
+            {% if user == listing.owner %}
+
+                <div class="vcp-avatar vcp-avatar-icon">
+                    <i class="bi bi-chat-dots-fill"></i>
+                </div>
+
+                <div class="vcp-title">
+                    <div class="fw-700 text-truncate">Buyer Messages</div>
+                    <small class="text-muted text-truncate d-block">
+                        {{ listing.year }} {{ listing.brand }} {{ listing.model }}
+                    </small>
+                </div>
+
+            {% else %}
+
+                {% if listing.owner.profile.profile_picture %}
+                    <img
+                        src="{{ listing.owner.profile.profile_picture.url }}"
+                        class="vcp-avatar"
+                        alt="Seller"
+                    >
+                {% else %}
+                    <div class="vcp-avatar vcp-avatar-icon">
+                        <i class="bi bi-person-fill"></i>
+                    </div>
+                {% endif %}
+
+                <div class="vcp-title">
+                    <div class="fw-700 text-truncate">
+                        {{ listing.owner.profile.get_full_name|default:listing.owner.username }}
+                    </div>
+                    <small class="text-muted text-truncate d-block">
+                        Chat about {{ listing.year }} {{ listing.brand }} {{ listing.model }}
+                    </small>
+                </div>
+
+            {% endif %}
+
+            <button
+                type="button"
+                class="vcp-close"
+                id="chatCloseBtn"
+                aria-label="Hide chat"
+                title="Hide chat"
+            >
+                <i class="bi bi-x-lg"></i>
+            </button>
+
+        </div>
+
+        {% if user == listing.owner %}
+            <!-- Buyer tabs (filled in by JS) -->
+            <div id="chatTabs" class="vcp-tabs" hidden></div>
+        {% endif %}
+
+        <!-- Messages (filled in by JS) -->
+        <div id="chatMessages" class="vcp-messages">
+
+            <div id="chatEmpty" class="vcp-empty">
+                <i class="bi bi-chat-dots"></i>
+                <p class="fw-700 mt-2 mb-1">
+                    {% if user == listing.owner %}No messages yet{% else %}Start a conversation{% endif %}
+                </p>
+                <small class="text-muted">
+                    {% if user == listing.owner %}
+                        Buyer conversations about this vehicle will appear here.
+                    {% else %}
+                        Ask about availability, condition, viewing, or location.
+                    {% endif %}
+                </small>
+            </div>
+
+        </div>
+
+        <!-- Composer -->
+        <form
+            id="chatForm"
+            class="vcp-form"
+            method="POST"
+            action="{% url 'send_chat_message' listing.pk %}"
+            {% if user == listing.owner %}hidden{% endif %}
+        >
+            {% csrf_token %}
+            <input type="hidden" name="conversation_id" id="chatConversationId" value="">
+
+            <div class="input-group">
+                <textarea
+                    name="message"
+                    id="chatInput"
+                    class="form-control"
+                    rows="2"
+                    maxlength="2000"
+                    required
+                    placeholder="{% if user == listing.owner %}Reply to this buyer...{% else %}Type a message to the seller...{% endif %}"
+                    style="resize:none;"
+                ></textarea>
+                <button type="submit" id="chatSendBtn" class="btn btn-primary px-3" aria-label="Send">
+                    <i class="bi bi-send-fill"></i>
+                </button>
+            </div>
+
+            <small id="chatError" class="text-danger d-block mt-2" style="font-size:.75rem;" hidden></small>
+
+            {% if user != listing.owner %}
+                <small class="text-muted d-block mt-2" style="font-size:.7rem;">
+                    <i class="bi bi-shield-check me-1"></i>
+                    Your conversation is about this vehicle only.
+                </small>
+            {% endif %}
+        </form>
+
+    </div>
 
     <button
         type="button"
+        id="chatBubble"
         class="vehicle-chat-bubble"
-        data-bs-toggle="collapse"
-        data-bs-target="#sellerChat"
-        aria-label="Chat with seller"
-        title="Chat with seller"
+        aria-controls="vehicle-chat"
+        aria-expanded="false"
+        aria-label="Toggle chat"
+        title="Chat"
     >
 
-        <i class="bi bi-chat-dots-fill"></i>
+        <i class="bi bi-chat-dots-fill" id="chatBubbleIcon"></i>
 
-        <span>
-            Chat
-        </span>
+        <span class="vcb-label">Chat</span>
+
+        <span
+            id="chatBadge"
+            class="vcb-badge"
+            {% if not unread_chat_count %}hidden{% endif %}
+        >{% if unread_chat_count > 99 %}99+{% else %}{{ unread_chat_count }}{% endif %}</span>
 
     </button>
 
@@ -1945,88 +1832,230 @@
 <style>
 
 .vehicle-chat-bubble {
-
     position: fixed;
-
     right: 28px;
     bottom: 28px;
-
     z-index: 1050;
-
     border: none;
-
     border-radius: 50px;
-
     padding: 14px 21px;
-
     background: #2563eb;
-
     color: #ffffff;
-
     font-size: 1rem;
-
     font-weight: 700;
-
     display: flex;
-
     align-items: center;
-
     gap: 8px;
-
-    box-shadow:
-        0 8px 25px rgba(0, 0, 0, .20);
-
-    transition:
-        transform .2s ease,
-        box-shadow .2s ease;
-
+    cursor: pointer;
+    box-shadow: 0 8px 25px rgba(0, 0, 0, .20);
+    transition: transform .2s ease, box-shadow .2s ease;
 }
-
 
 .vehicle-chat-bubble:hover {
-
     transform: translateY(-3px);
-
-    box-shadow:
-        0 12px 30px rgba(0, 0, 0, .25);
-
+    box-shadow: 0 12px 30px rgba(0, 0, 0, .25);
     color: #ffffff;
-
 }
-
 
 .vehicle-chat-bubble i {
-
     font-size: 1.2rem;
-
 }
 
+/* Red unread badge on the bubble */
+.vcb-badge {
+    position: absolute;
+    top: -6px;
+    right: -4px;
+    min-width: 22px;
+    height: 22px;
+    padding: 0 6px;
+    border-radius: 11px;
+    background: #ef4444;
+    color: #fff;
+    font-size: .72rem;
+    font-weight: 800;
+    line-height: 22px;
+    text-align: center;
+    border: 2px solid var(--bg-body, #fff);
+    box-shadow: 0 2px 6px rgba(239, 68, 68, .45);
+}
+
+.vcb-badge[hidden] { display: none; }
+
+/* Floating chat panel */
+.vehicle-chat-panel {
+    position: fixed;
+    right: 28px;
+    bottom: 96px;
+    z-index: 1049;
+    width: 380px;
+    max-width: calc(100vw - 24px);
+    height: min(560px, calc(100vh - 130px));
+    display: none;
+    flex-direction: column;
+    background: var(--bg-body);
+    color: var(--text-primary);
+    border: 1px solid var(--border);
+    border-radius: 18px;
+    overflow: hidden;
+    box-shadow: 0 16px 48px rgba(0, 0, 0, .25);
+}
+
+.vehicle-chat-panel.open {
+    display: flex;
+    animation: vcpIn .18s ease-out;
+}
+
+@keyframes vcpIn {
+    from { opacity: 0; transform: translateY(10px) scale(.98); }
+    to   { opacity: 1; transform: none; }
+}
+
+.vcp-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 14px;
+    background: var(--bg-subtle);
+    border-bottom: 1px solid var(--border);
+}
+
+.vcp-avatar {
+    width: 42px;
+    height: 42px;
+    border-radius: 50%;
+    object-fit: cover;
+    flex-shrink: 0;
+}
+
+.vcp-avatar-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--bg-card);
+    color: var(--text-secondary);
+}
+
+.vcp-title { flex: 1; min-width: 0; }
+
+.vcp-close {
+    border: none;
+    background: transparent;
+    color: var(--text-secondary);
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+.vcp-close:hover { background: var(--bg-card); }
+
+.vcp-tabs {
+    display: flex;
+    gap: 8px;
+    padding: 8px 10px;
+    overflow-x: auto;
+    border-bottom: 1px solid var(--border);
+}
+
+.vcp-tabs[hidden] { display: none; }
+
+.vcp-tab {
+    position: relative;
+    flex-shrink: 0;
+    white-space: nowrap;
+}
+
+.vcp-tab .vcp-tab-dot {
+    display: inline-block;
+    min-width: 18px;
+    height: 18px;
+    padding: 0 5px;
+    margin-left: 6px;
+    border-radius: 9px;
+    background: #ef4444;
+    color: #fff;
+    font-size: .65rem;
+    font-weight: 800;
+    line-height: 18px;
+    text-align: center;
+}
+
+.vcp-messages {
+    flex: 1;
+    overflow-y: auto;
+    padding: 15px;
+}
+
+.vcp-empty {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+}
+
+.vcp-empty i {
+    font-size: 2.5rem;
+    color: var(--text-faint);
+}
+
+.vcp-row { display: flex; margin-bottom: 14px; }
+.vcp-row.mine { justify-content: flex-end; }
+.vcp-col { max-width: 82%; }
+
+.vcp-bubble {
+    padding: 10px 14px;
+    word-break: break-word;
+    background: var(--bg-subtle);
+    color: var(--text-primary);
+    border: 1px solid var(--border);
+    border-radius: 16px 16px 16px 4px;
+}
+
+.vcp-row.mine .vcp-bubble {
+    background: #2563eb;
+    color: #fff;
+    border-color: #2563eb;
+    border-radius: 16px 16px 4px 16px;
+}
+
+.vcp-time {
+    font-size: .68rem;
+    margin-top: 4px;
+    color: var(--text-muted);
+}
+
+.vcp-row.mine .vcp-time { text-align: right; }
+
+.vcp-form {
+    padding: 12px;
+    border-top: 1px solid var(--border);
+}
+
+.vcp-form[hidden] { display: none; }
 
 @media (max-width: 576px) {
 
     .vehicle-chat-bubble {
-
         right: 18px;
-
         bottom: 18px;
-
         width: 56px;
-
         height: 56px;
-
         padding: 0;
-
         justify-content: center;
-
     }
 
-
-    .vehicle-chat-bubble span {
-
+    .vehicle-chat-bubble .vcb-label {
         display: none;
-
     }
 
+    .vehicle-chat-panel {
+        right: 12px;
+        bottom: 86px;
+        height: calc(100vh - 110px);
+    }
 }
 
 </style>
@@ -2037,6 +2066,334 @@
 
 
 {% block extra_js %}
+
+{% if user.is_authenticated and user.profile.email_verified %}
+<script>
+/* =========================================================
+   VEHICLE CHAT: toggle, live polling, AJAX send
+   ========================================================= */
+(function () {
+
+    const panel  = document.getElementById('vehicle-chat');
+    const bubble = document.getElementById('chatBubble');
+    if (!panel || !bubble) { return; }
+
+    const isOwner   = panel.dataset.isOwner === '1';
+    const pollUrl   = panel.dataset.pollUrl;
+    const badge     = document.getElementById('chatBadge');
+    const icon      = document.getElementById('chatBubbleIcon');
+    const list      = document.getElementById('chatMessages');
+    const emptyEl   = document.getElementById('chatEmpty');
+    const tabsEl    = document.getElementById('chatTabs');
+    const form      = document.getElementById('chatForm');
+    const input     = document.getElementById('chatInput');
+    const sendBtn   = document.getElementById('chatSendBtn');
+    const convInput = document.getElementById('chatConversationId');
+    const errorEl   = document.getElementById('chatError');
+    const closeBtn  = document.getElementById('chatCloseBtn');
+
+    const OPEN_INTERVAL   = 3000;    // while the chat is visible
+    const CLOSED_INTERVAL = 10000;   // only keeping the badge fresh
+
+    let isOpen = false;
+    let convId = panel.dataset.initialConversation || '';
+    let lastId = 0;
+    let timer = null;
+    let inFlight = false;
+    let pending = false;
+    let lastTabsKey = '';
+    const seen = new Set();
+
+
+    /* ---------- helpers ---------- */
+
+    function nearBottom() {
+        return list.scrollHeight - list.scrollTop - list.clientHeight < 80;
+    }
+
+    function scrollToBottom() {
+        list.scrollTop = list.scrollHeight;
+    }
+
+    function setBadge(n) {
+        if (!badge) { return; }
+        badge.textContent = n > 99 ? '99+' : String(n);
+        badge.hidden = !(n > 0);
+    }
+
+    // Keep the nav-bar bell in sync (the original notification is untouched).
+    function setNavBadge(n) {
+        const link = document.querySelector('a[href$="/notifications/"]');
+        if (!link || typeof n !== 'number') { return; }
+        let el = link.querySelector('.notif-badge');
+        if (n > 0) {
+            if (!el) {
+                el = document.createElement('span');
+                el.className = 'badge bg-danger rounded-pill notif-badge';
+                link.appendChild(el);
+            }
+            el.textContent = n;
+        } else if (el) {
+            el.remove();
+        }
+    }
+
+    function appendMessage(m) {
+        if (seen.has(m.id)) { return; }
+        seen.add(m.id);
+        lastId = Math.max(lastId, m.id);
+
+        if (emptyEl) { emptyEl.hidden = true; emptyEl.style.display = 'none'; }
+
+        const row = document.createElement('div');
+        row.className = 'vcp-row' + (m.mine ? ' mine' : '');
+
+        const col = document.createElement('div');
+        col.className = 'vcp-col';
+
+        const bub = document.createElement('div');
+        bub.className = 'vcp-bubble';
+        bub.innerHTML = m.html;          // server-escaped (linebreaksbr)
+
+        const time = document.createElement('div');
+        time.className = 'vcp-time';
+        time.textContent = m.time;
+
+        col.appendChild(bub);
+        col.appendChild(time);
+        row.appendChild(col);
+        list.appendChild(row);
+    }
+
+    function resetThread(newConvId) {
+        convId = String(newConvId || '');
+        lastId = 0;
+        seen.clear();
+        list.querySelectorAll('.vcp-row').forEach(function (r) { r.remove(); });
+        if (emptyEl) { emptyEl.hidden = false; emptyEl.style.display = ''; }
+        if (convInput) { convInput.value = convId; }
+    }
+
+    function renderTabs(convs) {
+        if (!tabsEl) { return; }
+
+        const key = JSON.stringify(convs.map(function (c) {
+            return [c.id, c.name, c.unread, String(c.id) === convId];
+        }));
+        if (key === lastTabsKey) { return; }
+        lastTabsKey = key;
+
+        tabsEl.innerHTML = '';
+        tabsEl.hidden = convs.length === 0;
+
+        convs.forEach(function (c) {
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = 'btn btn-sm vcp-tab ' +
+                (String(c.id) === convId ? 'btn-primary' : 'btn-outline-secondary');
+            btn.dataset.conv = c.id;
+
+            const icon = document.createElement('i');
+            icon.className = 'bi bi-person-circle me-1';
+            btn.appendChild(icon);
+            btn.appendChild(document.createTextNode(c.name));
+
+            if (c.unread > 0) {
+                const dot = document.createElement('span');
+                dot.className = 'vcp-tab-dot';
+                dot.textContent = c.unread;
+                btn.appendChild(dot);
+            }
+
+            btn.addEventListener('click', function () {
+                if (String(c.id) === convId) { return; }
+                resetThread(c.id);
+                lastTabsKey = '';
+                poll();
+            });
+
+            tabsEl.appendChild(btn);
+        });
+    }
+
+
+    /* ---------- polling ---------- */
+
+    async function poll() {
+        // If a poll is already running, run one more right after it
+        // (so a tab click or "open" is never dropped).
+        if (inFlight) { pending = true; return; }
+        inFlight = true;
+        pending = false;
+
+        try {
+            const params = new URLSearchParams({ after: lastId });
+            if (convId) { params.set('conversation', convId); }
+            if (isOpen) { params.set('mark_read', '1'); }
+
+            const res = await fetch(pollUrl + '?' + params.toString(), {
+                headers: { 'X-Requested-With': 'XMLHttpRequest' },
+                credentials: 'same-origin'
+            });
+
+            const type = res.headers.get('content-type') || '';
+            if (!res.ok || type.indexOf('application/json') === -1) { return; }
+
+            const data = await res.json();
+
+            // The user switched thread while this request was in flight:
+            // throw the stale answer away, the queued poll will fix it.
+            if (convId && data.conversation_id &&
+                String(data.conversation_id) !== convId) {
+                pending = true;
+                return;
+            }
+
+            // Adopt the thread the server picked (owner default / buyer's own).
+            if (data.conversation_id && String(data.conversation_id) !== convId) {
+                resetThread(data.conversation_id);
+            }
+
+            const stickToBottom = seen.size === 0 || nearBottom();
+            data.messages.forEach(appendMessage);
+            if (data.messages.length && stickToBottom) { scrollToBottom(); }
+
+            if (isOwner) {
+                renderTabs(data.conversations || []);
+                if (form) { form.hidden = !data.conversation_id; }
+            }
+
+            setBadge(data.unread_total);
+            setNavBadge(data.unread_notifications);
+
+        } catch (e) {
+            /* network hiccup: just try again on the next tick */
+        } finally {
+            inFlight = false;
+            if (pending) { poll(); }
+        }
+    }
+
+    function schedule() {
+        clearTimeout(timer);
+        if (document.hidden) { return; }
+        timer = setTimeout(async function () {
+            await poll();
+            schedule();
+        }, isOpen ? OPEN_INTERVAL : CLOSED_INTERVAL);
+    }
+
+
+    /* ---------- open / close ---------- */
+
+    function setOpen(open) {
+        isOpen = open;
+        panel.classList.toggle('open', open);
+        bubble.setAttribute('aria-expanded', open ? 'true' : 'false');
+        icon.className = open ? 'bi bi-x-lg' : 'bi bi-chat-dots-fill';
+
+        if (open) {
+            scrollToBottom();
+            poll();
+            if (form && !form.hidden) { input.focus(); }
+        }
+        schedule();
+    }
+
+    bubble.addEventListener('click', function () { setOpen(!isOpen); });
+    closeBtn.addEventListener('click', function () { setOpen(false); });
+
+    document.addEventListener('keydown', function (e) {
+        if (e.key === 'Escape' && isOpen) { setOpen(false); }
+    });
+
+    document.addEventListener('visibilitychange', function () {
+        if (!document.hidden) { poll(); }
+        schedule();
+    });
+
+
+    /* ---------- send without reloading ---------- */
+
+    function showError(text) {
+        errorEl.textContent = text || '';
+        errorEl.hidden = !text;
+    }
+
+    async function sendMessage() {
+        const text = input.value.trim();
+        if (!text || sendBtn.disabled) { return; }
+
+        sendBtn.disabled = true;
+        showError('');
+
+        try {
+            const res = await fetch(form.action, {
+                method: 'POST',
+                body: new FormData(form),
+                headers: { 'X-Requested-With': 'XMLHttpRequest' },
+                credentials: 'same-origin'
+            });
+
+            const type = res.headers.get('content-type') || '';
+            if (type.indexOf('application/json') === -1) {
+                // e.g. redirected to the verify-email page
+                showError('Could not send your message. Please reload the page and try again.');
+                return;
+            }
+
+            const data = await res.json();
+            if (!data.ok) {
+                showError(data.error || 'Could not send your message.');
+                return;
+            }
+
+            if (data.conversation_id && String(data.conversation_id) !== convId) {
+                convId = String(data.conversation_id);
+                if (convInput) { convInput.value = convId; }
+            }
+
+            appendMessage(data.message);
+            scrollToBottom();
+            input.value = '';
+            input.focus();
+            poll();                 // refresh tabs / badges right away
+
+        } catch (e) {
+            showError('Network error. Please try again.');
+        } finally {
+            sendBtn.disabled = false;
+        }
+    }
+
+    form.addEventListener('submit', function (e) {
+        e.preventDefault();
+        sendMessage();
+    });
+
+    // Enter sends, Shift+Enter inserts a new line.
+    input.addEventListener('keydown', function (e) {
+        if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) {
+            e.preventDefault();
+            sendMessage();
+        }
+    });
+
+
+    /* ---------- start ---------- */
+
+    // Deep links such as ...#vehicle-chat open the panel straight away.
+    if (window.location.hash === '#vehicle-chat') {
+        setOpen(true);
+    } else {
+        poll();
+        schedule();
+    }
+
+})();
+</script>
+{% endif %}
+
 
 <script>
 

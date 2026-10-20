@@ -936,3 +936,428 @@ h2 + .badge-listing-type, .d-flex .badge-listing-type { position: static; displa
     }
 
 }
+
+/* =========================================================
+   COMPARE UPGRADE: photo previews, sticky headers, best value
+   ========================================================= */
+
+.autohub-compare-bar {
+    bottom: -220px;
+}
+
+.autohub-compare-chip {
+    max-width: 240px;
+    padding: 4px 8px 4px 4px;
+    gap: 8px;
+}
+
+.autohub-compare-thumb {
+    width: 46px;
+    height: 34px;
+    object-fit: cover;
+    border-radius: 8px;
+    flex-shrink: 0;
+    background: var(--gray-light);
+}
+
+.autohub-compare-thumb-empty {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-muted);
+}
+
+.autohub-compare-slot {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 9px 14px;
+    border: 1px dashed var(--border);
+    border-radius: 999px;
+    color: var(--text-muted);
+    font-size: 0.7rem;
+}
+
+.autohub-compare-notice {
+    position: absolute;
+    left: 50%;
+    top: -48px;
+    transform: translateX(-50%) translateY(8px);
+    padding: 8px 16px;
+    border-radius: 999px;
+    background: #111827;
+    color: #fff;
+    font-size: 0.8rem;
+    white-space: nowrap;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.autohub-compare-notice.show {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+}
+
+/* Modal toolbar */
+
+.autohub-compare-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px 24px;
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--border);
+    font-size: 0.8rem;
+    color: var(--text-primary);
+}
+
+.cmp-legend {
+    color: var(--text-muted);
+}
+
+/* Scrollable table with sticky header row + label column */
+
+.autohub-compare-table-wrap {
+    overflow: auto;
+    max-height: calc(100vh - 230px);
+}
+
+.autohub-comparison-table {
+    min-width: calc(150px + var(--cmp-cols, 2) * 220px);
+    border-collapse: separate;
+    border-spacing: 0;
+}
+
+.autohub-comparison-table thead th {
+    background: var(--bg-card);
+    vertical-align: top;
+}
+
+.autohub-comparison-table .comparison-label {
+    position: sticky;
+    left: 0;
+    z-index: 2;
+    width: 150px;
+    min-width: 150px;
+}
+
+.autohub-comparison-table thead .comparison-label {
+    background: var(--gray-light);
+}
+
+.comparison-section th {
+    background: rgba(37, 99, 235, 0.08) !important;
+    color: var(--blue-mid);
+    font-size: 0.7rem;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+}
+
+/* Vehicle header card */
+
+.cmp-card {
+    position: relative;
+    white-space: normal;
+}
+
+.cmp-img-wrap {
+    position: relative;
+    height: 150px;
+    margin-bottom: 10px;
+    overflow: hidden;
+    border-radius: 10px;
+    background: var(--gray-light);
+}
+
+.cmp-img {
+    width: 100%;
+    height: 100%;
+    display: block;
+    object-fit: cover;
+}
+
+.cmp-img.unavailable {
+    filter: grayscale(100%);
+    opacity: 0.6;
+}
+
+.cmp-img-empty {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 2rem;
+    color: var(--text-muted);
+}
+
+.cmp-status {
+    position: absolute;
+    left: 8px;
+    bottom: 8px;
+    padding: 3px 10px;
+    border-radius: 999px;
+    background: rgba(0, 0, 0, 0.7);
+    color: #fff;
+    font-size: 0.68rem;
+    font-weight: 700;
+    text-transform: uppercase;
+}
+
+.cmp-remove {
+    position: absolute;
+    top: 6px;
+    right: 6px;
+    z-index: 2;
+    width: 26px;
+    height: 26px;
+    padding: 0;
+    border: 0;
+    border-radius: 50%;
+    background: rgba(0, 0, 0, 0.62);
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.7rem;
+    cursor: pointer;
+}
+
+.cmp-remove:hover {
+    background: #dc3545;
+}
+
+.cmp-type {
+    display: inline-block;
+    margin-top: 6px;
+    padding: 2px 10px;
+    border-radius: 999px;
+    background: var(--gray-light);
+    border: 1px solid var(--border);
+    color: var(--text-muted);
+    font-size: 0.68rem;
+    font-weight: 600;
+}
+
+/* Best value + yes/no */
+
+td.cmp-best {
+    background: rgba(25, 135, 84, 0.12) !important;
+    font-weight: 700;
+}
+
+.cmp-best-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 1px 8px;
+    border-radius: 999px;
+    background: #198754;
+    color: #fff;
+    font-size: 0.65rem;
+    font-weight: 700;
+    vertical-align: middle;
+}
+
+.cmp-yes {
+    color: #198754;
+    font-weight: 600;
+}
+
+.cmp-no {
+    color: var(--text-muted);
+}
+
+@media (max-width: 767.98px) {
+    .autohub-compare-slot {
+        display: none;
+    }
+
+    .autohub-compare-table-wrap {
+        max-height: calc(100vh - 150px);
+    }
+
+    .autohub-comparison-table {
+        min-width: calc(120px + var(--cmp-cols, 2) * 190px);
+    }
+
+    .autohub-comparison-table .comparison-label {
+        width: 120px;
+        min-width: 120px;
+    }
+}
+
+
+/* =========================================================
+   SHOW / HIDE PASSWORD BUTTON
+   ========================================================= */
+
+.password-field {
+    position: relative;
+}
+
+.password-field .form-control {
+    padding-right: 2.9rem;
+}
+
+.password-toggle {
+    position: absolute;
+    top: 50%;
+    right: 0.35rem;
+    transform: translateY(-50%);
+    width: 2.2rem;
+    height: 2.2rem;
+    padding: 0;
+    border: 0;
+    border-radius: 8px;
+    background: transparent;
+    color: var(--text-muted);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+}
+
+.password-toggle:hover {
+    color: var(--text-primary);
+    background: rgba(127, 127, 127, 0.14);
+}
+
+.password-toggle:focus-visible {
+    outline: 2px solid var(--blue-mid);
+    outline-offset: 1px;
+}
+
+
+/* Photo browsing inside the comparison (arrows + counter) */
+
+.cmp-img-wrap {
+    touch-action: pan-y;
+    user-select: none;
+}
+
+.cmp-nav {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    z-index: 2;
+    width: 28px;
+    height: 28px;
+    padding: 0;
+    border: 0;
+    border-radius: 50%;
+    background: rgba(0, 0, 0, 0.55);
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.75rem;
+    cursor: pointer;
+    opacity: 0.9;
+}
+
+.cmp-nav:hover {
+    background: rgba(0, 0, 0, 0.8);
+    opacity: 1;
+}
+
+.cmp-prev { left: 6px; }
+.cmp-next { right: 6px; }
+
+.cmp-count {
+    position: absolute;
+    right: 8px;
+    bottom: 8px;
+    padding: 2px 9px;
+    border-radius: 999px;
+    background: rgba(0, 0, 0, 0.65);
+    color: #fff;
+    font-size: 0.68rem;
+    font-weight: 600;
+}
+
+@media (max-width: 767.98px) {
+    .cmp-img-wrap {
+        height: 130px;
+    }
+}
+
+/* Keep the navbar (and its dropdown) above sticky page content like the seller card */
+#mainNav { z-index: 1035 !important; }
+#mainNav .dropdown-menu { z-index: 1036; }
+
+/* Modals whose <form> wraps header/body/footer: let the body scroll on short screens */
+.modal-dialog-scrollable .modal-content > form {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  max-height: calc(100vh - 3.5rem);
+  overflow: hidden;
+}
+.modal-dialog-scrollable .modal-content > form > .modal-body {
+  overflow-y: auto;
+  min-height: 0;
+}
+
+/* ── NAVBAR NOTIFICATION DROPDOWN ── */
+.notif-dropdown > .nav-link::after { display: none; }
+#mainNav .notif-menu {
+  width: 360px;
+  max-width: calc(100vw - 24px);
+  padding: 0;
+  overflow: hidden;
+}
+.notif-menu-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid var(--border);
+  color: var(--text-primary);
+}
+.notif-menu-list { max-height: 360px; overflow-y: auto; }
+.notif-menu-item {
+  display: flex; align-items: flex-start; gap: 0.75rem;
+  padding: 0.7rem 1rem;
+  text-decoration: none;
+  border-bottom: 1px solid var(--border);
+  color: var(--text-primary);
+  transition: background 0.15s;
+}
+.notif-menu-item:hover { background: var(--nav-hover-bg); color: var(--text-primary); }
+.notif-menu-item.unread { background: var(--blue-light); }
+[data-bs-theme="dark"] .notif-menu-item.unread { background: rgba(37,99,235,0.10); }
+.notif-menu-item .notif-icon { width: 34px; height: 34px; font-size: 0.85rem; }
+.notif-menu-body { flex: 1; min-width: 0; }
+.notif-menu-title { font-weight: 600; font-size: 0.85rem; }
+.notif-menu-text { font-size: 0.78rem; color: var(--text-secondary); }
+.notif-menu-time { font-size: 0.72rem; color: var(--text-muted); margin-top: 2px; }
+.notif-menu-empty { padding: 1.5rem 1rem; text-align: center; color: var(--text-muted); font-size: 0.85rem; }
+.notif-menu-footer {
+  display: block; text-align: center;
+  padding: 0.7rem 1rem;
+  font-weight: 600; font-size: 0.85rem;
+  color: var(--orange);
+  text-decoration: none;
+  border-top: 1px solid var(--border);
+}
+.notif-menu-footer:hover { background: var(--nav-hover-bg); color: var(--orange); }
+@media (max-width: 991.98px) {
+  #mainNav .notif-menu { position: absolute; right: 0; }
+}
+
+/* Sticky footer: keep the footer at the bottom on short pages */
+body {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+body > main {
+  flex: 1 0 auto;
+}
+body > footer {
+  margin-top: auto;
+  flex-shrink: 0;
+}
+
+/* Lift the global chat bubble above the compare bar while it is showing */
+body:has(.autohub-compare-bar.show) .acw-bubble { bottom: 96px; }
+body:has(.autohub-compare-bar.show) .acw-panel  { bottom: 164px; }

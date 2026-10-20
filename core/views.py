@@ -6,7 +6,7 @@ from django.core.exceptions import ValidationError
 from django.contrib.auth.models import User
 from django.contrib import messages
 from django.core.mail import send_mail
-from django.db.models import Q, Count
+from django.db.models import Q, Count, Prefetch
 from django.http import JsonResponse, Http404
 from django.views.decorators.http import require_POST
 from firebase_admin import auth as firebase_auth
@@ -35,6 +35,7 @@ from .forms import (
     SellerIDVerificationForm,
 )
 from django.utils import timezone
+from django.template.defaultfilters import linebreaksbr, date as date_filter
 from .supabase_utils import upload_id_document, get_signed_id_url, delete_id_document
 from firebase_admin import auth as firebase_auth
 from .firebase_utils import firebase_verify_password, send_firebase_verification_email, firebase_is_email_verified
@@ -242,7 +243,11 @@ def logout_view(request):
 @login_required
 def dashboard(request):
     form = SearchFilterForm(request.GET)
-    listings = VehicleListing.objects.filter(is_active=True, is_approved=True)
+    listings = VehicleListing.objects.filter(
+        is_active=True, is_approved=True
+    ).prefetch_related(
+        Prefetch('photos', queryset=VehiclePhoto.objects.order_by('pk'))
+    )
 
     if form.is_valid():
         q = form.cleaned_data.get('q')
@@ -292,63 +297,17 @@ def vehicle_detail(request, pk):
         raise Http404("Listing not found.")
 
     inquiry_form = ContactInquiryForm()
-    conversation = None
-    chat_messages = []
-    conversations = []
-    selected_conversation = None
+    unread_chat_count = 0
 
-    # Chat is available only to verified, authenticated users.
+    # The chat itself is loaded by the floating chat panel through
+    # chat_poll(); here we only need the unread count for the bubble badge.
     if request.user.is_authenticated:
         profile, _ = UserProfile.objects.get_or_create(user=request.user)
 
         if profile.email_verified:
-            if request.user != listing.owner:
-                # One private conversation per buyer for this vehicle.
-                conversation, _ = ChatConversation.objects.get_or_create(
-                    listing=listing,
-                    customer=request.user,
-                )
-                chat_messages = conversation.messages.select_related(
-                    'sender'
-                ).all()
-
-                # Seller messages become read when the buyer opens the listing.
-                conversation.messages.filter(
-                    sender=listing.owner,
-                    is_read=False,
-                ).update(is_read=True)
-
-            else:
-                # Seller sees all buyers who have contacted this vehicle,
-                # directly inside the vehicle detail page.
-                conversations = list(
-                    ChatConversation.objects.filter(
-                        listing=listing
-                    ).select_related(
-                        'customer'
-                    ).prefetch_related(
-                        'messages'
-                    ).order_by('-updated_at')
-                )
-
-                selected_id = request.GET.get('conversation')
-                if selected_id:
-                    selected_conversation = get_object_or_404(
-                        ChatConversation,
-                        pk=selected_id,
-                        listing=listing,
-                    )
-                elif conversations:
-                    selected_conversation = conversations[0]
-
-                if selected_conversation:
-                    selected_conversation.messages.filter(
-                        sender=selected_conversation.customer,
-                        is_read=False,
-                    ).update(is_read=True)
-                    chat_messages = selected_conversation.messages.select_related(
-                        'sender'
-                    ).all()
+            unread_chat_count = _unread_chat_messages(
+                listing, request.user
+            ).count()
 
     # Keep the existing inquiry form for compatibility with older pages.
     if request.method == 'POST' and request.POST.get('inquiry_message'):
@@ -417,10 +376,7 @@ def vehicle_detail(request, pk):
         {
             'listing': listing,
             'inquiry_form': inquiry_form,
-            'conversation': conversation,
-            'conversations': conversations,
-            'selected_conversation': selected_conversation,
-            'chat_messages': chat_messages,
+            'unread_chat_count': unread_chat_count,
             'seller_ratings': seller_ratings,
             'user_seller_rating': user_seller_rating,
             'seller_rating_form': seller_rating_form,
@@ -429,6 +385,47 @@ def vehicle_detail(request, pk):
             'vehicle_rating_form': vehicle_rating_form,
         }
     )
+
+
+# ─── CHAT HELPERS ─────────────────────────────────────────────────────────────
+
+def _is_ajax(request):
+    return request.headers.get('X-Requested-With') == 'XMLHttpRequest'
+
+
+def _unread_chat_messages(listing, user):
+    """
+    Messages about this listing that `user` has received but not read yet.
+
+    Owner: unread messages from every buyer.  Buyer: unread replies in their
+    own conversation only.
+    """
+    qs = ChatMessage.objects.filter(
+        conversation__listing=listing,
+        is_read=False,
+    ).exclude(sender=user)
+
+    if user != listing.owner:
+        qs = qs.filter(conversation__customer=user)
+
+    return qs
+
+
+def _serialize_chat_message(msg, viewer):
+    return {
+        'id': msg.id,
+        'mine': msg.sender_id == viewer.id,
+        # linebreaksbr escapes the text first, so this is safe to inject.
+        'html': linebreaksbr(msg.message),
+        'time': date_filter(msg.created_at, 'M d, Y g:i A'),
+    }
+
+
+def _chat_error(request, listing, text, status=400):
+    if _is_ajax(request):
+        return JsonResponse({'ok': False, 'error': text}, status=status)
+    messages.warning(request, text)
+    return redirect('vehicle_detail', pk=listing.pk)
 
 
 # ─── SEND CHAT MESSAGE ────────────────────────────────────────────────────────
@@ -440,8 +437,8 @@ def send_chat_message(request, pk):
     """
     Send a message in the private conversation for this vehicle.
 
-    Buyers send to the seller. Sellers can reply to a selected buyer
-    from the same vehicle detail page.
+    Buyers send to the seller. Sellers reply to a selected buyer.
+    Returns JSON for AJAX requests (no page reload), otherwise redirects.
     """
 
     listing = get_object_or_404(
@@ -454,22 +451,22 @@ def send_chat_message(request, pk):
     message_text = request.POST.get('message', '').strip()
 
     if not message_text:
-        messages.warning(request, "Please enter a message.")
-        return redirect('vehicle_detail', pk=listing.pk)
+        return _chat_error(request, listing, "Please enter a message.")
 
     if len(message_text) > 2000:
-        messages.warning(
+        return _chat_error(
             request,
+            listing,
             "Your message is too long. Please keep it under 2000 characters."
         )
-        return redirect('vehicle_detail', pk=listing.pk)
 
     if request.user == listing.owner:
         # Seller must choose which buyer they are replying to.
         conversation_id = request.POST.get('conversation_id')
         if not conversation_id:
-            messages.warning(request, "Please select a conversation first.")
-            return redirect('vehicle_detail', pk=listing.pk)
+            return _chat_error(
+                request, listing, "Please select a conversation first."
+            )
 
         conversation = get_object_or_404(
             ChatConversation,
@@ -483,7 +480,7 @@ def send_chat_message(request, pk):
             customer=request.user,
         )
 
-    ChatMessage.objects.create(
+    chat_message = ChatMessage.objects.create(
         conversation=conversation,
         sender=request.user,
         message=message_text,
@@ -508,6 +505,13 @@ def send_chat_message(request, pk):
         related_listing=listing,
     )
 
+    if _is_ajax(request):
+        return JsonResponse({
+            'ok': True,
+            'conversation_id': conversation.id,
+            'message': _serialize_chat_message(chat_message, request.user),
+        })
+
     if request.user == listing.owner:
         return redirect(
             f"{reverse('vehicle_detail', kwargs={'pk': listing.pk})}"
@@ -517,6 +521,266 @@ def send_chat_message(request, pk):
     return redirect(
         f"{reverse('vehicle_detail', kwargs={'pk': listing.pk})}#vehicle-chat"
     )
+
+
+# ─── CHAT POLL (AJAX) ─────────────────────────────────────────────────────────
+
+@login_required
+@email_verified_required
+def chat_poll(request, pk):
+    """
+    Lightweight endpoint the chat panel polls so new messages and unread
+    badges show up without reloading the page.
+
+    GET params:
+      conversation  owner only; which buyer's thread (defaults to the latest)
+      after         only return messages with id greater than this
+      mark_read     "1" when the chat panel is open and the user is looking
+                    at the thread, so incoming messages count as read
+    """
+
+    listing = get_object_or_404(VehicleListing, pk=pk, is_active=True)
+    is_owner = request.user == listing.owner
+
+    conversations_payload = []
+    conversation = None
+
+    if is_owner:
+        convs = list(
+            ChatConversation.objects.filter(listing=listing)
+            .select_related('customer')
+            .annotate(
+                msg_total=Count('messages'),
+                unread=Count(
+                    'messages',
+                    filter=Q(messages__is_read=False)
+                    & ~Q(messages__sender=listing.owner),
+                ),
+            )
+            .filter(msg_total__gt=0)
+            .order_by('-updated_at')
+        )
+
+        conversations_payload = [
+            {
+                'id': c.id,
+                'name': c.customer.get_full_name() or c.customer.username,
+                'unread': c.unread,
+            }
+            for c in convs
+        ]
+
+        requested = request.GET.get('conversation', '')
+        if requested.isdigit():
+            conversation = next(
+                (c for c in convs if c.id == int(requested)), None
+            )
+        if conversation is None and convs:
+            conversation = convs[0]
+    else:
+        conversation = ChatConversation.objects.filter(
+            listing=listing, customer=request.user
+        ).first()
+
+    try:
+        after = int(request.GET.get('after', 0))
+    except (TypeError, ValueError):
+        after = 0
+
+    new_messages = []
+    if conversation:
+        new_messages = [
+            _serialize_chat_message(m, request.user)
+            for m in conversation.messages.filter(id__gt=after)
+        ]
+
+        if request.GET.get('mark_read') == '1':
+            conversation.messages.filter(is_read=False).exclude(
+                sender=request.user
+            ).update(is_read=True)
+
+            # Keep the per-conversation badge in sync with what we just read.
+            for c in conversations_payload:
+                if c['id'] == conversation.id:
+                    c['unread'] = 0
+
+    return JsonResponse({
+        'conversation_id': conversation.id if conversation else None,
+        'messages': new_messages,
+        'conversations': conversations_payload,
+        'unread_total': _unread_chat_messages(
+            listing, request.user
+        ).count(),
+        # Lets the nav-bar bell stay accurate without a reload too.
+        'unread_notifications': Notification.objects.filter(
+            recipient=request.user, is_read=False
+        ).count(),
+    })
+
+
+# ─── GLOBAL CHAT WIDGET (inbox / thread / send) ──────────────────────────────
+# These power the floating chat bubble that appears on every page for users
+# who already have at least one conversation.
+
+def _display_name(user):
+    return user.get_full_name() or user.username
+
+
+def _avatar_url(user):
+    profile = getattr(user, 'profile', None)
+    pic = getattr(profile, 'profile_picture', None) if profile else None
+    try:
+        return pic.url if pic else ''
+    except ValueError:
+        return ''
+
+
+def _user_conversations(user):
+    """Conversations `user` takes part in (as buyer or as listing owner)."""
+    return ChatConversation.objects.filter(
+        Q(customer=user) | Q(listing__owner=user)
+    )
+
+
+def _unread_chat_total(user):
+    """Every chat message waiting for `user` across all conversations."""
+    return ChatMessage.objects.filter(
+        is_read=False,
+    ).filter(
+        Q(conversation__customer=user) | Q(conversation__listing__owner=user)
+    ).exclude(sender=user).count()
+
+
+def _get_participant_conversation(request, conv_id):
+    conv = get_object_or_404(
+        ChatConversation.objects.select_related('listing__owner', 'customer'),
+        pk=conv_id,
+    )
+    if request.user not in (conv.customer, conv.listing.owner):
+        raise Http404("Conversation not found.")
+    return conv
+
+
+@login_required
+@email_verified_required
+def chat_inbox(request):
+    """JSON list of the user's conversations, newest first."""
+    user = request.user
+    convs = (
+        _user_conversations(user)
+        .select_related('listing__owner__profile', 'customer__profile')
+        .annotate(
+            msg_total=Count('messages', distinct=True),
+            unread=Count(
+                'messages',
+                filter=Q(messages__is_read=False) & ~Q(messages__sender=user),
+                distinct=True,
+            ),
+        )
+        .filter(msg_total__gt=0)
+        .order_by('-updated_at')[:50]
+    )
+
+    payload = []
+    for c in convs:
+        as_seller = c.listing.owner_id == user.id
+        other = c.customer if as_seller else c.listing.owner
+        last = c.messages.order_by('-created_at').first()
+        listing = c.listing
+        payload.append({
+            'id': c.id,
+            'listing_id': listing.id,
+            'listing_title': f"{listing.year} {listing.brand} {listing.model}",
+            'listing_url': reverse('vehicle_detail', kwargs={'pk': listing.pk}),
+            'other_name': _display_name(other),
+            'other_avatar': _avatar_url(other),
+            'as_seller': as_seller,
+            'preview': (last.message[:80] if last else ''),
+            'last_mine': bool(last and last.sender_id == user.id),
+            'time': date_filter(c.updated_at, 'M d, g:i A'),
+            'unread': c.unread,
+        })
+
+    return JsonResponse({
+        'conversations': payload,
+        'unread_total': _unread_chat_total(user),
+        'unread_notifications': Notification.objects.filter(
+            recipient=user, is_read=False
+        ).count(),
+    })
+
+
+@login_required
+@email_verified_required
+def chat_thread(request, conv_id):
+    """New messages in one conversation (polled by the widget)."""
+    conv = _get_participant_conversation(request, conv_id)
+
+    try:
+        after = int(request.GET.get('after', 0))
+    except (TypeError, ValueError):
+        after = 0
+
+    new_messages = [
+        _serialize_chat_message(m, request.user)
+        for m in conv.messages.filter(id__gt=after)
+    ]
+
+    if request.GET.get('mark_read') == '1':
+        conv.messages.filter(is_read=False).exclude(
+            sender=request.user
+        ).update(is_read=True)
+
+    return JsonResponse({
+        'messages': new_messages,
+        'unread_total': _unread_chat_total(request.user),
+        'unread_notifications': Notification.objects.filter(
+            recipient=request.user, is_read=False
+        ).count(),
+    })
+
+
+@login_required
+@email_verified_required
+@require_POST
+def chat_send(request, conv_id):
+    """Send a message into an existing conversation from the widget."""
+    conv = _get_participant_conversation(request, conv_id)
+    listing = conv.listing
+
+    text = request.POST.get('message', '').strip()
+    if not text:
+        return JsonResponse({'ok': False, 'error': 'Please enter a message.'}, status=400)
+    if len(text) > 2000:
+        return JsonResponse({
+            'ok': False,
+            'error': 'Your message is too long. Please keep it under 2000 characters.',
+        }, status=400)
+
+    chat_message = ChatMessage.objects.create(
+        conversation=conv,
+        sender=request.user,
+        message=text,
+    )
+    conv.save()  # bumps updated_at so it moves to the top of the inbox
+
+    recipient = conv.customer if request.user == listing.owner else listing.owner
+    Notification.objects.create(
+        recipient=recipient,
+        notif_type='message',
+        title='New vehicle chat message',
+        message=(
+            f"{_display_name(request.user)} sent a message about the "
+            f"{listing.year} {listing.brand} {listing.model}."
+        ),
+        related_listing=listing,
+    )
+
+    return JsonResponse({
+        'ok': True,
+        'conversation_id': conv.id,
+        'message': _serialize_chat_message(chat_message, request.user),
+    })
 
 
 # ─── RATE SELLER / RENTER ACCOUNT ─────────────────────────────────────────────

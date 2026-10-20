@@ -179,6 +179,15 @@
         data-compare-leather="{% if vehicle.has_leather_seats %}Yes{% else %}No{% endif %}"
         data-compare-delivery="{% if vehicle.delivery_available %}Yes{% else %}No{% endif %}"
         data-compare-url="{% url 'vehicle_detail' vehicle.pk %}"
+        data-compare-image="{{ vehicle.get_main_photo|default:'' }}"
+        data-compare-images="{% for photo in vehicle.photos.all %}{{ photo.image.url }}{% if not forloop.last %}|{% endif %}{% endfor %}"
+        data-compare-type="{{ vehicle.get_listing_type_display }}"
+        data-compare-type-key="{{ vehicle.listing_type }}"
+        data-compare-status="{{ vehicle.get_availability_status_display }}"
+        data-compare-status-key="{{ vehicle.availability_status }}"
+        data-compare-price-num="{{ vehicle.price|floatformat:'0u' }}"
+        data-compare-mileage-num="{% if vehicle.mileage %}{{ vehicle.mileage|floatformat:'0u' }}{% endif %}"
+        data-compare-hp-num="{% if vehicle.horsepower %}{{ vehicle.horsepower }}{% endif %}"
     >
         <i class="bi bi-check2-square"></i>
         Compare
@@ -284,7 +293,7 @@
     tabindex="-1"
     aria-hidden="true"
 >
-    <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
+    <div class="modal-dialog modal-xl modal-dialog-centered modal-fullscreen-md-down">
 
         <div class="modal-content autohub-compare-modal">
 
@@ -313,6 +322,11 @@
             <div class="modal-body p-0">
 
                 <div
+                    id="autohubCompareToolbar"
+                    class="autohub-compare-toolbar"
+                ></div>
+
+                <div
                     id="autohubCompareTable"
                     class="autohub-compare-table-wrap"
                 ></div>
@@ -328,97 +342,239 @@
 document.addEventListener('DOMContentLoaded', function () {
 
     const MAX_COMPARE = 3;
+    const STORAGE_KEY = 'autohub_compare_selection';
 
     let selectedVehicles = [];
+    let showDiffOnly = false;
 
-    const compareBar = document.getElementById('autohubCompareBar');
-    const compareCount = document.getElementById('autohubCompareCount');
+    const compareBar      = document.getElementById('autohubCompareBar');
+    const compareCount    = document.getElementById('autohubCompareCount');
     const compareSelected = document.getElementById('autohubCompareSelected');
-
-    const openCompare = document.getElementById('autohubOpenCompare');
-    const clearCompare = document.getElementById('autohubClearCompare');
-
-    const compareTable = document.getElementById('autohubCompareTable');
-
-    const compareButtons = document.querySelectorAll(
-        '.autohub-compare-btn'
-    );
+    const openCompare     = document.getElementById('autohubOpenCompare');
+    const clearCompare    = document.getElementById('autohubClearCompare');
+    const compareToolbar  = document.getElementById('autohubCompareToolbar');
+    const compareTable    = document.getElementById('autohubCompareTable');
+    const compareModalEl  = document.getElementById('autohubCompareModal');
+    const compareButtons  = document.querySelectorAll('.autohub-compare-btn');
 
 
     /* =========================================================
-       GET VEHICLE DATA
+       SPECIFICATIONS SHOWN IN THE COMPARISON TABLE
+       best: 'min' / 'max' highlights the best numeric value
+       bool: shows a check / dash icon instead of text
+       ========================================================= */
+
+    const SPEC_GROUPS = [
+        {
+            title: 'Overview',
+            rows: [
+                { label: 'Price',        key: 'price',     best: 'min', num: 'priceNum', sameTypeOnly: true },
+                { label: 'Listing Type', key: 'type' },
+                { label: 'Year',         key: 'year',      best: 'max', num: 'yearNum' },
+                { label: 'Brand',        key: 'brand' },
+                { label: 'Model',        key: 'model' },
+                { label: 'Body Type',    key: 'body' },
+                { label: 'Condition',    key: 'condition' },
+                { label: 'Mileage',      key: 'mileage',   best: 'min', num: 'mileageNum' },
+                { label: 'Color',        key: 'color' },
+                { label: 'Location',     key: 'location' }
+            ]
+        },
+        {
+            title: 'Performance',
+            rows: [
+                { label: 'Fuel Type',    key: 'fuel' },
+                { label: 'Transmission', key: 'transmission' },
+                { label: 'Drive Type',   key: 'drive' },
+                { label: 'Engine',       key: 'engine' },
+                { label: 'Horsepower',   key: 'hp',        best: 'max', num: 'hpNum' }
+            ]
+        },
+        {
+            title: 'Capacity',
+            rows: [
+                { label: 'Seats', key: 'seats', best: 'max', num: 'seatsNum' },
+                { label: 'Doors', key: 'doors' }
+            ]
+        },
+        {
+            title: 'Features',
+            rows: [
+                { label: 'Air Conditioning',   key: 'ac',        bool: true },
+                { label: 'Dashcam',            key: 'dashcam',   bool: true },
+                { label: 'ABS',                key: 'abs',       bool: true },
+                { label: 'Airbags',            key: 'airbags',   bool: true },
+                { label: 'Backup Camera',      key: 'camera',    bool: true },
+                { label: 'GPS',                key: 'gps',       bool: true },
+                { label: 'Bluetooth',          key: 'bluetooth', bool: true },
+                { label: 'Sunroof',            key: 'sunroof',   bool: true },
+                { label: 'Leather Seats',      key: 'leather',   bool: true },
+                { label: 'Delivery Available', key: 'delivery',  bool: true }
+            ]
+        }
+    ];
+
+
+    /* =========================================================
+       HELPERS
+       ========================================================= */
+
+    // Escapes text before it is placed into HTML (listing data is user-typed)
+    function esc(value) {
+        const div = document.createElement('div');
+        div.textContent = (value === null || value === undefined) ? '' : String(value);
+        return div.innerHTML.replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+    }
+
+    function toNumber(value) {
+        const n = parseFloat(value);
+        return isNaN(n) ? null : n;
+    }
+
+    function showNotice(message) {
+        let notice = document.getElementById('autohubCompareNotice');
+
+        if (!notice) {
+            notice = document.createElement('div');
+            notice.id = 'autohubCompareNotice';
+            notice.className = 'autohub-compare-notice';
+            notice.setAttribute('role', 'status');
+            compareBar.appendChild(notice);
+        }
+
+        notice.textContent = message;
+        notice.classList.add('show');
+
+        clearTimeout(showNotice.timer);
+        showNotice.timer = setTimeout(function () {
+            notice.classList.remove('show');
+        }, 2600);
+    }
+
+    function thumbHtml(vehicle, className) {
+        if (vehicle.image) {
+            return '<img class="' + className + '" src="' + esc(vehicle.image) +
+                   '" alt="' + esc(vehicle.name) + '" loading="lazy">';
+        }
+        return '<div class="' + className + ' ' + className + '-empty">' +
+               '<i class="bi bi-car-front-fill"></i></div>';
+    }
+
+
+    /* =========================================================
+       READ VEHICLE DATA FROM A CARD BUTTON
        ========================================================= */
 
     function getVehicleData(button) {
+        const d = button.dataset;
 
         return {
-            id: button.dataset.compareId,
+            id: d.compareId,
+            name: d.compareName,
+            image: d.compareImage || '',
+            images: (d.compareImages || '').split('|').filter(Boolean),
+            photoIndex: 0,
+            type: d.compareType,
+            typeKey: d.compareTypeKey,
+            status: d.compareStatus,
+            statusKey: d.compareStatusKey,
 
-            name: button.dataset.compareName,
-            price: button.dataset.comparePrice,
+            price: d.comparePrice,
+            priceNum: toNumber(d.comparePriceNum),
+            year: d.compareYear,
+            yearNum: toNumber(d.compareYear),
+            brand: d.compareBrand,
+            model: d.compareModel,
+            body: d.compareBody,
+            condition: d.compareCondition,
+            mileage: d.compareMileage,
+            mileageNum: toNumber(d.compareMileageNum),
+            color: d.compareColor,
+            location: d.compareLocation,
 
-            year: button.dataset.compareYear,
-            brand: button.dataset.compareBrand,
-            model: button.dataset.compareModel,
+            fuel: d.compareFuel,
+            transmission: d.compareTransmission,
+            drive: d.compareDrive,
+            engine: d.compareEngine,
+            hp: d.compareHp,
+            hpNum: toNumber(d.compareHpNum),
 
-            body: button.dataset.compareBody,
-            condition: button.dataset.compareCondition,
+            seats: d.compareSeats,
+            seatsNum: toNumber(d.compareSeats),
+            doors: d.compareDoors,
 
-            fuel: button.dataset.compareFuel,
-            transmission: button.dataset.compareTransmission,
-            drive: button.dataset.compareDrive,
+            ac: d.compareAc,
+            dashcam: d.compareDashcam,
+            abs: d.compareAbs,
+            airbags: d.compareAirbags,
+            camera: d.compareCamera,
+            gps: d.compareGps,
+            bluetooth: d.compareBluetooth,
+            sunroof: d.compareSunroof,
+            leather: d.compareLeather,
+            delivery: d.compareDelivery,
 
-            engine: button.dataset.compareEngine,
-            hp: button.dataset.compareHp,
-            mileage: button.dataset.compareMileage,
-
-            seats: button.dataset.compareSeats,
-            doors: button.dataset.compareDoors,
-            color: button.dataset.compareColor,
-
-            location: button.dataset.compareLocation,
-
-            ac: button.dataset.compareAc,
-            dashcam: button.dataset.compareDashcam,
-
-            abs: button.dataset.compareAbs,
-            airbags: button.dataset.compareAirbags,
-            camera: button.dataset.compareCamera,
-
-            gps: button.dataset.compareGps,
-            bluetooth: button.dataset.compareBluetooth,
-            sunroof: button.dataset.compareSunroof,
-            leather: button.dataset.compareLeather,
-
-            delivery: button.dataset.compareDelivery,
-
-            url: button.dataset.compareUrl
+            url: d.compareUrl
         };
     }
 
 
     /* =========================================================
-       UPDATE BUTTON
+       KEEP THE SELECTION WHEN THE PAGE RELOADS (search / filters)
+       ========================================================= */
+
+    function saveSelection() {
+        try {
+            sessionStorage.setItem(STORAGE_KEY, JSON.stringify(selectedVehicles));
+        } catch (e) { /* storage unavailable - selection just won't persist */ }
+    }
+
+    function restoreSelection() {
+        let saved = [];
+
+        try {
+            saved = JSON.parse(sessionStorage.getItem(STORAGE_KEY) || '[]');
+        } catch (e) {
+            saved = [];
+        }
+
+        if (!Array.isArray(saved)) {
+            return;
+        }
+
+        saved.slice(0, MAX_COMPARE).forEach(function (vehicle) {
+            if (!vehicle || !vehicle.id) {
+                return;
+            }
+
+            let current = vehicle;
+
+            compareButtons.forEach(function (button) {
+                if (button.dataset.compareId === String(vehicle.id)) {
+                    current = getVehicleData(button);
+                    updateButton(button, true);
+                }
+            });
+
+            selectedVehicles.push(current);
+        });
+    }
+
+
+    /* =========================================================
+       UPDATE CARD BUTTON
        ========================================================= */
 
     function updateButton(button, selected) {
-
         if (selected) {
-
             button.classList.remove('btn-outline-primary');
-
             button.classList.add('btn-primary');
-
             button.innerHTML =
                 '<i class="bi bi-check-square-fill me-1"></i>' +
                 'Selected';
-
         } else {
-
             button.classList.remove('btn-primary');
-
             button.classList.add('btn-outline-primary');
-
             button.innerHTML =
                 '<i class="bi bi-check2-square me-1"></i>' +
                 'Compare';
@@ -427,352 +583,403 @@ document.addEventListener('DOMContentLoaded', function () {
 
 
     /* =========================================================
-       UPDATE COMPARISON BAR
+       UPDATE COMPARISON BAR (with vehicle photo previews)
        ========================================================= */
 
     function updateCompareBar() {
-
         const count = selectedVehicles.length;
 
         compareCount.textContent = count;
-
         openCompare.disabled = count < 2;
+        openCompare.title = count < 2 ? 'Select at least 2 vehicles to compare' : '';
 
         if (count > 0) {
-
             compareBar.classList.add('show');
-
             compareBar.setAttribute('aria-hidden', 'false');
-
         } else {
-
             compareBar.classList.remove('show');
-
             compareBar.setAttribute('aria-hidden', 'true');
         }
-
 
         compareSelected.innerHTML = '';
 
         selectedVehicles.forEach(function (vehicle) {
-
             const item = document.createElement('div');
-
             item.className = 'autohub-compare-chip';
 
-            item.innerHTML = `
-                <span>${vehicle.name}</span>
-                <button
-                    type="button"
-                    data-remove-id="${vehicle.id}"
-                    aria-label="Remove ${vehicle.name}"
-                >
-                    <i class="bi bi-x"></i>
-                </button>
-            `;
+            item.innerHTML =
+                thumbHtml(vehicle, 'autohub-compare-thumb') +
+                '<span>' + esc(vehicle.name) + '</span>' +
+                '<button type="button" data-remove-id="' + esc(vehicle.id) +
+                '" aria-label="Remove ' + esc(vehicle.name) + '">' +
+                '<i class="bi bi-x"></i></button>';
 
             compareSelected.appendChild(item);
         });
 
+        for (let i = count; i < MAX_COMPARE; i++) {
+            const slot = document.createElement('div');
+            slot.className = 'autohub-compare-slot';
+            slot.innerHTML = '<i class="bi bi-plus-lg"></i> Add vehicle';
+            compareSelected.appendChild(slot);
+        }
 
         compareSelected
             .querySelectorAll('[data-remove-id]')
             .forEach(function (button) {
-
                 button.addEventListener('click', function () {
-
                     removeVehicle(button.dataset.removeId);
-
                 });
-
             });
+
+        saveSelection();
     }
 
 
     /* =========================================================
-       ADD VEHICLE
+       ADD / REMOVE / CLEAR
        ========================================================= */
 
     function addVehicle(button) {
-
         const id = button.dataset.compareId;
 
-        if (
-            selectedVehicles.some(function (vehicle) {
-                return vehicle.id === id;
-            })
-        ) {
+        if (selectedVehicles.some(function (v) { return v.id === id; })) {
             return;
         }
-
 
         if (selectedVehicles.length >= MAX_COMPARE) {
-
-            alert('You can compare up to 3 vehicles at a time.');
-
+            showNotice('You can compare up to 3 vehicles at a time.');
             return;
         }
 
-
-        selectedVehicles.push(
-            getVehicleData(button)
-        );
-
+        selectedVehicles.push(getVehicleData(button));
         updateButton(button, true);
-
         updateCompareBar();
     }
-
-
-    /* =========================================================
-       REMOVE VEHICLE
-       ========================================================= */
 
     function removeVehicle(id) {
-
-        selectedVehicles =
-            selectedVehicles.filter(function (vehicle) {
-                return vehicle.id !== id;
-            });
-
-
-        compareButtons.forEach(function (button) {
-
-            if (button.dataset.compareId === id) {
-
-                updateButton(button, false);
-
-            }
-
+        selectedVehicles = selectedVehicles.filter(function (v) {
+            return v.id !== String(id);
         });
 
+        compareButtons.forEach(function (button) {
+            if (button.dataset.compareId === String(id)) {
+                updateButton(button, false);
+            }
+        });
 
         updateCompareBar();
     }
 
-
-    /* =========================================================
-       CLEAR
-       ========================================================= */
-
     function clearAll() {
-
         selectedVehicles = [];
 
         compareButtons.forEach(function (button) {
-
             updateButton(button, false);
-
         });
 
         updateCompareBar();
     }
 
-
-    /* =========================================================
-       COMPARE BUTTONS
-       ========================================================= */
-
     compareButtons.forEach(function (button) {
-
         button.addEventListener('click', function () {
-
             const id = button.dataset.compareId;
 
-            const alreadySelected =
-                selectedVehicles.some(function (vehicle) {
-                    return vehicle.id === id;
-                });
-
+            const alreadySelected = selectedVehicles.some(function (v) {
+                return v.id === id;
+            });
 
             if (alreadySelected) {
-
                 removeVehicle(id);
-
             } else {
-
                 addVehicle(button);
+            }
+        });
+    });
 
+    clearCompare.addEventListener('click', clearAll);
+
+
+    /* =========================================================
+       COMPARISON TABLE
+       ========================================================= */
+
+    // Indexes of the vehicles holding the best value for a row
+    function bestIndexes(row) {
+        if (!row.best) {
+            return [];
+        }
+
+        // Sale and rent prices can't be compared with each other
+        if (row.sameTypeOnly) {
+            const types = selectedVehicles.map(function (v) { return v.typeKey; });
+            if (new Set(types).size > 1) {
+                return [];
+            }
+        }
+
+        const nums = selectedVehicles.map(function (v) { return v[row.num]; });
+
+        if (nums.some(function (n) { return n === null; })) {
+            return [];
+        }
+
+        const target = row.best === 'min'
+            ? Math.min.apply(null, nums)
+            : Math.max.apply(null, nums);
+
+        // Nothing to highlight when every vehicle is equal
+        if (nums.every(function (n) { return n === target; })) {
+            return [];
+        }
+
+        const winners = [];
+        nums.forEach(function (n, i) {
+            if (n === target) {
+                winners.push(i);
+            }
+        });
+        return winners;
+    }
+
+    // All photos of a vehicle (falls back to the main photo)
+    function photoList(vehicle) {
+        if (vehicle.images && vehicle.images.length) {
+            return vehicle.images;
+        }
+        return vehicle.image ? [vehicle.image] : [];
+    }
+
+    function headerCell(vehicle) {
+        const unavailable = vehicle.statusKey && vehicle.statusKey !== 'available';
+        const photos = photoList(vehicle);
+        const index = Math.min(vehicle.photoIndex || 0, Math.max(photos.length - 1, 0));
+
+        const image = photos.length
+            ? '<img class="cmp-img' + (unavailable ? ' unavailable' : '') +
+              '" src="' + esc(photos[index]) + '" alt="' + esc(vehicle.name) + '" draggable="false">'
+            : '<div class="cmp-img cmp-img-empty"><i class="bi bi-car-front-fill"></i></div>';
+
+        const nav = photos.length > 1
+            ? '<button type="button" class="cmp-nav cmp-prev" data-cmp-nav="-1" data-cmp-id="' + esc(vehicle.id) +
+              '" aria-label="Previous photo"><i class="bi bi-chevron-left"></i></button>' +
+              '<button type="button" class="cmp-nav cmp-next" data-cmp-nav="1" data-cmp-id="' + esc(vehicle.id) +
+              '" aria-label="Next photo"><i class="bi bi-chevron-right"></i></button>' +
+              '<span class="cmp-count">' + (index + 1) + ' / ' + photos.length + '</span>'
+            : '';
+
+        const status = unavailable
+            ? '<span class="cmp-status">' + esc(vehicle.status) + '</span>'
+            : '';
+
+        return '<th class="comparison-vehicle"><div class="cmp-card" data-vehicle-id="' + esc(vehicle.id) + '">' +
+            '<button type="button" class="cmp-remove" data-cmp-remove="' + esc(vehicle.id) +
+            '" aria-label="Remove ' + esc(vehicle.name) + '"><i class="bi bi-x-lg"></i></button>' +
+            '<div class="cmp-img-wrap">' + image + nav + status + '</div>' +
+            '<div class="comparison-vehicle-name">' + esc(vehicle.name) + '</div>' +
+            '<div class="comparison-vehicle-price">' + esc(vehicle.price) + '</div>' +
+            '<span class="cmp-type">' + esc(vehicle.type) + '</span>' +
+            '</div></th>';
+    }
+
+    // Show the next / previous photo of one vehicle without re-drawing the table
+    function shiftPhoto(id, step) {
+        const vehicle = selectedVehicles.find(function (v) { return v.id === String(id); });
+        if (!vehicle) {
+            return;
+        }
+
+        const photos = photoList(vehicle);
+        if (photos.length < 2) {
+            return;
+        }
+
+        vehicle.photoIndex = ((vehicle.photoIndex || 0) + step + photos.length) % photos.length;
+
+        const card = compareTable.querySelector('.cmp-card[data-vehicle-id="' + String(id) + '"]');
+        if (card) {
+            const img = card.querySelector('img.cmp-img');
+            const counter = card.querySelector('.cmp-count');
+            if (img) { img.src = photos[vehicle.photoIndex]; }
+            if (counter) { counter.textContent = (vehicle.photoIndex + 1) + ' / ' + photos.length; }
+        }
+    }
+
+    // Arrow buttons
+    compareTable.addEventListener('click', function (event) {
+        const nav = event.target.closest('[data-cmp-nav]');
+        if (nav) {
+            shiftPhoto(nav.dataset.cmpId, parseInt(nav.dataset.cmpNav, 10));
+        }
+    });
+
+    // Swipe left / right on touch screens
+    let swipeStartX = null;
+    let swipeId = null;
+
+    compareTable.addEventListener('touchstart', function (event) {
+        const wrap = event.target.closest('.cmp-img-wrap');
+        if (!wrap) {
+            swipeStartX = null;
+            return;
+        }
+        swipeStartX = event.changedTouches[0].clientX;
+        swipeId = wrap.closest('.cmp-card').dataset.vehicleId;
+    }, { passive: true });
+
+    compareTable.addEventListener('touchend', function (event) {
+        if (swipeStartX === null) {
+            return;
+        }
+        const distance = event.changedTouches[0].clientX - swipeStartX;
+        if (Math.abs(distance) > 40) {
+            shiftPhoto(swipeId, distance < 0 ? 1 : -1);
+        }
+        swipeStartX = null;
+    }, { passive: true });
+
+    function cellHtml(row, vehicle, isBest) {
+        const raw = vehicle[row.key];
+        let content;
+
+        if (row.bool) {
+            content = raw === 'Yes'
+                ? '<span class="cmp-yes"><i class="bi bi-check-circle-fill"></i> Yes</span>'
+                : '<span class="cmp-no"><i class="bi bi-dash-circle"></i> No</span>';
+        } else {
+            content = esc(raw || 'Not specified');
+
+            if (isBest) {
+                content += ' <span class="cmp-best-badge">' +
+                           '<i class="bi bi-trophy-fill"></i> Best</span>';
+            }
+        }
+
+        return '<td class="' + (isBest ? 'cmp-best' : '') + '">' + content + '</td>';
+    }
+
+    function applyDiffFilter() {
+        const rows = Array.prototype.slice.call(
+            compareTable.querySelectorAll('tbody tr')
+        );
+
+        let sectionRow = null;
+        let visibleInSection = 0;
+
+        function closeSection() {
+            if (sectionRow) {
+                sectionRow.hidden = showDiffOnly && visibleInSection === 0;
+            }
+        }
+
+        rows.forEach(function (row) {
+            if (row.classList.contains('comparison-section')) {
+                closeSection();
+                sectionRow = row;
+                visibleInSection = 0;
+                return;
             }
 
+            const hide = showDiffOnly && row.classList.contains('comparison-row-same');
+            row.hidden = hide;
+
+            if (!hide) {
+                visibleInSection++;
+            }
         });
 
-    });
-
-
-    /* =========================================================
-       CLEAR BUTTON
-       ========================================================= */
-
-    clearCompare.addEventListener('click', function () {
-
-        clearAll();
-
-    });
-
-
-    /* =========================================================
-       CREATE COMPARISON TABLE
-       ========================================================= */
+        closeSection();
+    }
 
     function createComparisonTable() {
-
         if (selectedVehicles.length < 2) {
             return;
         }
 
+        const count = selectedVehicles.length;
+        const typesDiffer = new Set(
+            selectedVehicles.map(function (v) { return v.typeKey; })
+        ).size > 1;
 
-        const rows = [
+        /* Toolbar */
+        compareToolbar.innerHTML =
+            '<div class="form-check form-switch mb-0">' +
+                '<input class="form-check-input" type="checkbox" role="switch" id="autohubDiffOnly"' +
+                    (showDiffOnly ? ' checked' : '') + '>' +
+                '<label class="form-check-label" for="autohubDiffOnly">Show differences only</label>' +
+            '</div>' +
+            '<span class="cmp-legend"><span class="cmp-best-badge">' +
+                '<i class="bi bi-trophy-fill"></i> Best</span> marks the best value</span>' +
+            (typesDiffer
+                ? '<span class="cmp-legend"><i class="bi bi-info-circle"></i> ' +
+                  'Sale and rent prices are not directly comparable.</span>'
+                : '');
 
-            ['Price', 'price'],
-            ['Year', 'year'],
-            ['Brand', 'brand'],
-            ['Model', 'model'],
-            ['Body Type', 'body'],
-            ['Condition', 'condition'],
-
-            ['Fuel Type', 'fuel'],
-            ['Transmission', 'transmission'],
-            ['Drive Type', 'drive'],
-
-            ['Engine', 'engine'],
-            ['Horsepower', 'hp'],
-            ['Mileage', 'mileage'],
-
-            ['Seats', 'seats'],
-            ['Doors', 'doors'],
-            ['Color', 'color'],
-
-            ['Location', 'location'],
-
-            ['Air Conditioning', 'ac'],
-            ['Dashcam', 'dashcam'],
-
-            ['ABS', 'abs'],
-            ['Airbags', 'airbags'],
-            ['Backup Camera', 'camera'],
-
-            ['GPS', 'gps'],
-            ['Bluetooth', 'bluetooth'],
-            ['Sunroof', 'sunroof'],
-            ['Leather Seats', 'leather'],
-
-            ['Delivery Available', 'delivery']
-        ];
-
-
-        let html = `
-            <div class="table-responsive">
-
-                <table class="table autohub-comparison-table mb-0">
-
-                    <thead>
-
-                        <tr>
-
-                            <th class="comparison-label">
-                                Specification
-                            </th>
-        `;
-
+        /* Table */
+        let html =
+            '<table class="table autohub-comparison-table mb-0" style="--cmp-cols:' + count + '">' +
+            '<thead><tr><th class="comparison-label">Vehicle</th>';
 
         selectedVehicles.forEach(function (vehicle) {
-
-            html += `
-                <th class="comparison-vehicle">
-
-                    <div class="comparison-vehicle-name">
-                        ${vehicle.name}
-                    </div>
-
-                    <div class="comparison-vehicle-price">
-                        ${vehicle.price}
-                    </div>
-
-                </th>
-            `;
-
+            html += headerCell(vehicle);
         });
 
+        html += '</tr></thead><tbody>';
 
-        html += `
-                        </tr>
+        SPEC_GROUPS.forEach(function (group) {
+            html += '<tr class="comparison-section"><th colspan="' + (count + 1) + '">' +
+                    esc(group.title) + '</th></tr>';
 
-                    </thead>
+            group.rows.forEach(function (row) {
+                const winners = bestIndexes(row);
 
-                    <tbody>
-        `;
+                const values = selectedVehicles.map(function (v) {
+                    return String(v[row.key] || 'Not specified').toLowerCase();
+                });
+                const allSame = values.every(function (x) { return x === values[0]; });
 
+                html += '<tr' + (allSame ? ' class="comparison-row-same"' : '') + '>' +
+                        '<th class="comparison-label">' + esc(row.label) + '</th>';
 
-        rows.forEach(function (row) {
+                selectedVehicles.forEach(function (vehicle, i) {
+                    html += cellHtml(row, vehicle, winners.indexOf(i) !== -1);
+                });
 
-            html += `
-                <tr>
-
-                    <th class="comparison-label">
-                        ${row[0]}
-                    </th>
-            `;
-
-
-            selectedVehicles.forEach(function (vehicle) {
-
-                html += `
-                    <td>
-                        ${vehicle[row[1]] || 'Not specified'}
-                    </td>
-                `;
-
+                html += '</tr>';
             });
-
-
-            html += `
-                </tr>
-            `;
-
         });
 
-
-        html += `
-                    <tr>
-
-                        <th class="comparison-label">
-                            Actions
-                        </th>
-        `;
-
+        html += '<tr><th class="comparison-label">Actions</th>';
 
         selectedVehicles.forEach(function (vehicle) {
-
-            html += `
-                <td>
-
-                    <a
-                        href="${vehicle.url}"
-                        class="btn btn-primary btn-sm w-100"
-                    >
-                        <i class="bi bi-eye me-1"></i>
-                        View Vehicle
-                    </a>
-
-                </td>
-            `;
-
+            html += '<td><a href="' + esc(vehicle.url) + '" class="btn btn-primary btn-sm w-100">' +
+                    '<i class="bi bi-eye me-1"></i>View Vehicle</a></td>';
         });
 
-
-        html += `
-                    </tr>
-
-                    </tbody>
-
-                </table>
-
-            </div>
-        `;
-
+        html += '</tr></tbody></table>';
 
         compareTable.innerHTML = html;
+
+        /* Remove a vehicle straight from the comparison */
+        compareTable.querySelectorAll('[data-cmp-remove]').forEach(function (button) {
+            button.addEventListener('click', function () {
+                removeVehicle(button.dataset.cmpRemove);
+
+                if (selectedVehicles.length < 2) {
+                    bootstrap.Modal.getOrCreateInstance(compareModalEl).hide();
+                } else {
+                    createComparisonTable();
+                }
+            });
+        });
+
+        /* Differences-only switch */
+        document.getElementById('autohubDiffOnly').addEventListener('change', function () {
+            showDiffOnly = this.checked;
+            applyDiffFilter();
+        });
+
+        applyDiffFilter();
     }
 
 
@@ -781,25 +988,22 @@ document.addEventListener('DOMContentLoaded', function () {
        ========================================================= */
 
     openCompare.addEventListener('click', function () {
-
         if (selectedVehicles.length < 2) {
             return;
         }
 
-
         createComparisonTable();
 
-
-        const modalElement =
-            document.getElementById('autohubCompareModal');
-
-        const modal =
-            bootstrap.Modal.getOrCreateInstance(modalElement);
-
-        modal.show();
-
+        bootstrap.Modal.getOrCreateInstance(compareModalEl).show();
     });
 
+
+    /* =========================================================
+       START: restore any earlier selection
+       ========================================================= */
+
+    restoreSelection();
+    updateCompareBar();
 });
 </script>
 

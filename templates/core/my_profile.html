@@ -1,63 +1,475 @@
 {% extends 'core/base.html' %}
 {% block title %}My Profile — AutoHub{% endblock %}
 
+{% block extra_css %}
+<style>
+
+/* =========================================================
+   PROFILE PAGE
+   ========================================================= */
+
+.pf-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    box-shadow: var(--card-shadow);
+    padding: 1.5rem;
+}
+
+.pf-card + .pf-card { margin-top: 1.25rem; }
+
+.pf-card-title {
+    font-weight: 700;
+    font-size: .95rem;
+    margin-bottom: .75rem;
+    color: var(--text-primary);
+}
+
+/* ── Identity card ── */
+.pf-hero { text-align: center; position: relative; }
+
+.pf-pill {
+    position: absolute;
+    top: 0;
+    right: 0;
+    font-size: .72rem;
+    font-weight: 700;
+    padding: 3px 12px;
+    border-radius: 20px;
+    border: 1px solid #10b981;
+    color: #10b981;
+    background: transparent;
+}
+
+.pf-pill.customer { border-color: var(--text-faint); color: var(--text-muted); }
+
+.pf-avatar-wrap {
+    position: relative;
+    width: 132px;
+    height: 132px;
+    margin: .5rem auto 0;
+}
+
+.pf-avatar {
+    width: 132px;
+    height: 132px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 4px solid var(--orange);
+    box-shadow: 0 4px 18px rgba(249, 115, 22, .28);
+}
+
+.pf-avatar-ph {
+    width: 132px;
+    height: 132px;
+    border-radius: 50%;
+    background: var(--bg-subtle);
+    border: 4px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 3.4rem;
+    color: var(--text-faint);
+}
+
+.pf-avatar-edit {
+    position: absolute;
+    right: 2px;
+    bottom: 4px;
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    border: 3px solid var(--bg-card);
+    background: #2563eb;
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: .85rem;
+}
+
+.pf-avatar-edit:hover { background: #1d4ed8; }
+
+.pf-name { font-weight: 800; font-size: 1.3rem; margin: 1rem 0 0; }
+.pf-handle { color: var(--text-muted); margin-bottom: .5rem; }
+
+/* Gold star bar driven by --pct */
+.pf-stars {
+    position: relative;
+    display: inline-block;
+    font-size: 1.05rem;
+    letter-spacing: 2px;
+    line-height: 1;
+    color: var(--border);
+}
+
+.pf-stars::before { content: "★★★★★"; }
+
+.pf-stars > span {
+    position: absolute;
+    inset: 0 auto 0 0;
+    width: var(--pct, 0%);
+    overflow: hidden;
+    white-space: nowrap;
+    color: #f59e0b;
+}
+
+.pf-stars > span::before { content: "★★★★★"; }
+
+.pf-btn-outline {
+    display: block;
+    width: 100%;
+    padding: .55rem 1rem;
+    margin-top: 1.1rem;
+    border: 1px solid var(--text-primary);
+    border-radius: 8px;
+    background: transparent;
+    color: var(--text-primary);
+    font-weight: 600;
+    font-size: .9rem;
+    text-align: center;
+    text-decoration: none;
+    transition: background .15s, color .15s;
+}
+
+.pf-btn-outline:hover {
+    background: var(--text-primary);
+    color: var(--bg-card);
+}
+
+.pf-divider { border: 0; border-top: 1px solid var(--border); margin: 1.25rem 0; }
+
+.pf-info { list-style: none; padding: 0; margin: 0; text-align: left; }
+
+.pf-info li {
+    display: flex;
+    align-items: center;
+    gap: .6rem;
+    padding: .45rem 0;
+    font-size: .88rem;
+    color: var(--text-muted);
+}
+
+.pf-info li i { width: 18px; text-align: center; color: var(--text-faint); }
+.pf-info li .pf-val { margin-left: auto; color: var(--text-primary); font-weight: 600; text-align: right; min-width: 0; overflow-wrap: anywhere; }
+
+.pf-stats {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    text-align: center;
+    gap: .5rem;
+}
+
+.pf-stats .n { font-weight: 800; font-size: 1.35rem; line-height: 1.1; }
+.pf-stats small { color: var(--text-muted); font-size: .72rem; }
+
+.pf-bio { color: var(--text-secondary); font-size: .9rem; white-space: pre-line; margin: 0; }
+
+/* ── Tabs (underline, like the reference) ── */
+.pf-tabs {
+    display: flex;
+    gap: 2rem;
+    padding: 0 1.5rem;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    box-shadow: var(--card-shadow);
+    overflow-x: auto;
+}
+
+.pf-tab {
+    border: none;
+    background: transparent;
+    padding: 1.15rem 0 .95rem;
+    font-weight: 700;
+    font-size: .82rem;
+    letter-spacing: .4px;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    border-bottom: 3px solid transparent;
+    white-space: nowrap;
+}
+
+.pf-tab:hover { color: var(--text-primary); }
+
+.pf-tab.active {
+    color: var(--text-primary);
+    border-bottom-color: #10b981;
+}
+
+.pf-tab .pf-count {
+    margin-left: 6px;
+    font-size: .7rem;
+    padding: 1px 7px;
+    border-radius: 10px;
+    background: var(--bg-subtle);
+    color: var(--text-muted);
+}
+
+/* ── Listing tiles ── */
+.pf-tile {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    transition: box-shadow .2s, transform .2s;
+}
+
+.pf-tile:hover { box-shadow: var(--card-hover); transform: translateY(-2px); }
+
+.pf-tile-img {
+    position: relative;
+    height: 160px;
+    border-radius: 12px 12px 0 0;
+    overflow: hidden;
+    background: var(--bg-subtle);
+    display: block;
+}
+
+.pf-tile-img img { width: 100%; height: 100%; object-fit: cover; }
+
+.pf-tile-img .no-photo {
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 2.5rem;
+    color: var(--text-faint);
+}
+
+.pf-status {
+    position: absolute;
+    right: 10px;
+    top: 10px;
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: .72rem;
+    font-weight: 700;
+    color: #fff;
+    z-index: 2;
+}
+
+.pf-tile-body { padding: .9rem 1rem 0; flex: 1; }
+
+.pf-tile-title {
+    display: block;
+    font-weight: 600;
+    font-size: .95rem;
+    color: var(--text-primary);
+    text-decoration: none;
+    margin-bottom: .25rem;
+}
+
+.pf-tile-title:hover { color: #2563eb; }
+
+.pf-tile-loc { font-size: .78rem; color: var(--text-muted); }
+
+.pf-tile-foot {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: .75rem 1rem;
+    margin-top: .5rem;
+}
+
+.pf-price { font-weight: 800; font-size: 1.05rem; color: var(--orange); }
+.pf-price small { font-weight: 500; color: var(--text-muted); font-size: .72rem; }
+
+.pf-kebab {
+    border: none;
+    background: transparent;
+    color: var(--text-muted);
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    font-size: 1.1rem;
+}
+
+.pf-kebab:hover, .pf-kebab[aria-expanded="true"] { background: var(--bg-subtle); color: var(--text-primary); }
+
+.pf-menu form { margin: 0; }
+.pf-menu .dropdown-item { font-size: .86rem; }
+
+/* "Create new" tile */
+.pf-new {
+    border: 2px dashed var(--border);
+    border-radius: 12px;
+    min-height: 260px;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: .9rem;
+    text-decoration: none;
+    color: var(--text-primary);
+    background: var(--bg-card);
+    font-weight: 600;
+    font-size: .9rem;
+    text-align: center;
+    padding: 1rem;
+    transition: border-color .2s, background .2s;
+}
+
+.pf-new:hover { border-color: #10b981; background: var(--bg-subtle); color: var(--text-primary); }
+
+.pf-new .plus {
+    width: 62px;
+    height: 62px;
+    border-radius: 50%;
+    background: #1f2937;
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.9rem;
+}
+
+[data-bs-theme="dark"] .pf-new .plus { background: #f1f5f9; color: #111827; }
+
+.pf-new.locked .plus { background: var(--text-faint); }
+
+.pf-empty { text-align: center; padding: 3rem 1rem; color: var(--text-muted); }
+.pf-empty i { font-size: 3rem; color: var(--text-faint); }
+
+/* ── Reviews ── */
+.pf-review { padding: 1rem 0; border-bottom: 1px solid var(--border); }
+.pf-review:last-child { border-bottom: 0; }
+
+.pf-review-av {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    object-fit: cover;
+    background: var(--bg-subtle);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-faint);
+    flex-shrink: 0;
+}
+
+.pf-big-rating { font-size: 2.4rem; font-weight: 800; line-height: 1; }
+
+/* ── Edit modal ── */
+.pf-modal-avatar {
+    width: 84px;
+    height: 84px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 3px solid var(--orange);
+    background: var(--bg-subtle);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 2rem;
+    color: var(--text-faint);
+    flex-shrink: 0;
+}
+
+@media (max-width: 576px) {
+    .pf-tabs { gap: 1.25rem; padding: 0 1rem; }
+}
+
+</style>
+{% endblock %}
+
+
 {% block content %}
 <div class="container py-4">
   <div class="row g-4">
-    <!-- LEFT: Profile Info -->
-    <div class="col-lg-4">
-      <div class="profile-card mb-4">
-        <div class="profile-pic-wrap">
-          {% if profile.profile_picture %}
-            <img src="{{ profile.profile_picture.url }}" id="profileImg" class="profile-pic" alt="Profile Picture">
-          {% else %}
-            <div class="profile-pic-placeholder" id="profileImg">
-              <i class="bi bi-person-fill"></i>
-            </div>
-          {% endif %}
-        </div>
-        <h4 class="fw-800 mt-3">{{ profile.get_full_name|default:user.username }}</h4>
-        <p class="text-muted">@{{ user.username }}</p>
 
-        {% if profile.average_rating %}
-          <div class="mb-2">
-            <span style="color:#f59e0b;"><i class="bi bi-star-fill"></i></span>
-            <strong>{{ profile.average_rating }}</strong>
-            <span class="text-muted small">({{ profile.rating_count }} rating{{ profile.rating_count|pluralize }})</span>
-          </div>
+    <!-- ===================================================== -->
+    <!-- LEFT COLUMN: identity                                  -->
+    <!-- ===================================================== -->
+    <div class="col-lg-4">
+
+      <div class="pf-card pf-hero">
+
+        {% if profile.role == 'seller' %}
+          <span class="pf-pill"><i class="bi bi-shop me-1"></i>Seller</span>
         {% else %}
-          <div class="mb-2">
-            <span class="text-muted small"><i class="bi bi-star"></i> No ratings yet</span>
-          </div>
+          <span class="pf-pill customer"><i class="bi bi-person-fill me-1"></i>Customer</span>
         {% endif %}
 
-        <div class="profile-stats d-flex justify-content-center gap-4 mt-3">
-          <div class="text-center">
-            <div class="fw-800 fs-4 text-primary">{{ my_listings.count }}</div>
-            <small class="text-muted">Listings</small>
-          </div>
-          <div class="text-center">
-            <div class="fw-800 fs-4 text-success">{{ user.date_joined|date:"Y" }}</div>
-            <small class="text-muted">Joined</small>
-          </div>
+        <div class="pf-avatar-wrap">
+          {% if profile.profile_picture %}
+            <img src="{{ profile.profile_picture.url }}" class="pf-avatar" alt="Profile picture">
+          {% else %}
+            <div class="pf-avatar-ph"><i class="bi bi-person-fill"></i></div>
+          {% endif %}
+          <button type="button" class="pf-avatar-edit" data-bs-toggle="modal" data-bs-target="#editProfileModal" aria-label="Change photo" title="Change photo">
+            <i class="bi bi-camera-fill"></i>
+          </button>
         </div>
+
+        <h4 class="pf-name">{{ profile.get_full_name|default:user.username }}</h4>
+        <div class="pf-handle">@{{ user.username }}</div>
+
+        {% if rating_avg %}
+          <div class="d-flex align-items-center justify-content-center gap-2">
+            <span class="pf-stars" style="--pct:{{ rating_pct }}%;"><span></span></span>
+            <strong>{{ rating_avg }}</strong>
+            <span class="text-muted small">({{ rating_total }})</span>
+          </div>
+        {% else %}
+          <div class="text-muted small"><i class="bi bi-star me-1"></i>No ratings yet</div>
+        {% endif %}
+
+        <button type="button" class="pf-btn-outline" data-bs-toggle="modal" data-bs-target="#editProfileModal">
+          <i class="bi bi-pencil-fill me-2"></i>Edit Profile
+        </button>
+
+        <hr class="pf-divider">
+
+        <ul class="pf-info">
+          <li>
+            <i class="bi bi-envelope"></i> Email
+            <span class="pf-val">
+              {{ user.email|default:"—" }}
+              {% if profile.email_verified %}
+                <i class="bi bi-patch-check-fill text-success ms-1" title="Verified"></i>
+              {% else %}
+                <a href="{% url 'verify_email' %}" class="badge bg-warning text-dark text-decoration-none ms-1">Verify</a>
+              {% endif %}
+            </span>
+          </li>
+          <li><i class="bi bi-telephone"></i> Phone <span class="pf-val">{{ profile.phone_number|default:"Not added" }}</span></li>
+          <li><i class="bi bi-person"></i> Member since <span class="pf-val">{{ user.date_joined|date:"M Y" }}</span></li>
+        </ul>
+
+        <hr class="pf-divider">
+
+        <div class="pf-stats">
+          <div><div class="n text-primary">{{ my_listings|length }}</div><small>Listings</small></div>
+          <div><div class="n" style="color:#10b981;">{{ active_listings|length }}</div><small>Active</small></div>
+          <div><div class="n" style="color:#f59e0b;">{{ rating_total }}</div><small>Reviews</small></div>
+        </div>
+
       </div>
 
-      <div class="mt-3">
-  {% if profile.role == 'seller' %}
-  <span class="badge bg-warning text-dark"><i class="bi bi-shop me-1"></i>Seller / Renter</span>
-  {% else %}
-  <span class="badge bg-secondary"><i class="bi bi-person-fill me-1"></i>Customer</span>
-  <a href="{% url 'become_seller' %}" class="btn btn-sm btn-outline-warning ms-2">
-    <i class="bi bi-arrow-up-circle me-1"></i>Become a Seller
-  </a>
-  {% endif %}
-</div>
+      <!-- About -->
+      <div class="pf-card">
+        <div class="d-flex align-items-center justify-content-between">
+          <div class="pf-card-title mb-0">About</div>
+          <a href="#" class="small text-decoration-none" data-bs-toggle="modal" data-bs-target="#editProfileModal">Edit</a>
+        </div>
+        {% if profile.bio %}
+          <p class="pf-bio mt-2">{{ profile.bio }}</p>
+        {% else %}
+          <p class="text-muted small mt-2 mb-0">
+            Tell buyers a little about yourself. A short bio builds trust.
+          </p>
+        {% endif %}
+      </div>
 
+      <!-- Identity verification (sellers) / Become a seller (customers) -->
       {% if profile.role == 'seller' %}
-        <div class="mt-3 p-3 rounded-3" style="background:var(--bg-subtle);border:1px solid var(--border);">
+        <div class="pf-card">
           <div class="d-flex align-items-center justify-content-between mb-2">
-            <span class="fw-700 small"><i class="bi bi-patch-check me-1"></i>Identity Verification</span>
+            <span class="pf-card-title mb-0"><i class="bi bi-patch-check me-1"></i>Identity Verification</span>
             {% if profile.user.is_superuser %}
               <span class="badge bg-danger">Exempt</span>
             {% elif profile.id_verification_status == 'verified' %}
@@ -84,146 +496,244 @@
             {% endif %}
           </p>
           {% if not profile.user.is_superuser and not profile.is_id_verified %}
-          <a href="{% url 'verify_identity' %}" class="btn btn-sm btn-outline-primary w-100">
-            {% if profile.id_verification_status == 'pending' %}Replace ID{% elif profile.id_verification_status == 'rejected' %}Upload New ID{% else %}Verify Identity{% endif %}
-          </a>
+            <a href="{% url 'verify_identity' %}" class="pf-btn-outline mt-2">
+              {% if profile.id_verification_status == 'pending' %}Replace ID{% elif profile.id_verification_status == 'rejected' %}Upload New ID{% else %}Verify Identity{% endif %}
+            </a>
           {% endif %}
+        </div>
+      {% else %}
+        <div class="pf-card">
+          <div class="pf-card-title"><i class="bi bi-shop me-1"></i>Want to sell or rent out vehicles?</div>
+          <p class="small text-muted mb-0">Upgrade to a seller account and start posting your own listings.</p>
+          <a href="{% url 'become_seller' %}" class="pf-btn-outline">
+            <i class="bi bi-arrow-up-circle me-2"></i>Become a Seller
+          </a>
         </div>
       {% endif %}
 
-      <!-- Edit Form -->
-      <div class="profile-edit-card">
-        <h6 class="fw-700 mb-3"><i class="bi bi-pencil-fill me-2 text-primary"></i>Edit Profile</h6>
-        <form method="post" enctype="multipart/form-data" novalidate>
-          {% csrf_token %}
-          {% for field in form %}
-          <div class="mb-3">
-            <label class="form-label fw-600 small">{{ field.label }}</label>
-            {{ field }}
-            {% if field.errors %}<div class="text-danger small">{{ field.errors.0 }}</div>{% endif %}
-          </div>
-          {% endfor %}
-          <button type="submit" class="btn btn-primary w-100 fw-600">
-            <i class="bi bi-check-circle me-2"></i>Save Changes
-          </button>
-        </form>
-      </div>
     </div>
 
-    <!-- RIGHT: My Listings -->
+
+    <!-- ===================================================== -->
+    <!-- RIGHT COLUMN: tabs                                     -->
+    <!-- ===================================================== -->
     <div class="col-lg-8">
-      <div class="d-flex justify-content-between align-items-center mb-4">
-        <h5 class="fw-800 mb-0"><i class="bi bi-list-ul me-2 text-primary"></i>My Vehicle Listings</h5>
-        {% if profile.can_post_vehicles %}
-          <a href="{% url 'post_vehicle' %}" class="btn btn-warning fw-600">
-            <i class="bi bi-plus-circle me-1"></i>Post New Vehicle
-          </a>
-        {% elif profile.role == 'seller' and profile.id_verification_status == 'pending' %}
-          <span class="btn btn-secondary fw-600 disabled">
-            <i class="bi bi-hourglass-split me-1"></i>ID Under Review
-          </span>
-        {% elif profile.role == 'seller' %}
-          <a
-            href="{% url 'verify_identity' %}"
-            class="btn btn-secondary fw-600"
-            title="Verify your identity first to unlock posting"
-          >
-            <i class="bi bi-lock-fill me-1"></i>Verify ID to Post
-          </a>
+
+      <div class="pf-tabs" role="tablist">
+        <button class="pf-tab active" data-pf-tab="active" role="tab">Active listings<span class="pf-count">{{ active_listings|length }}</span></button>
+        <button class="pf-tab" data-pf-tab="closed" role="tab">Sold / Rented<span class="pf-count">{{ closed_listings|length }}</span></button>
+        <button class="pf-tab" data-pf-tab="reviews" role="tab">Reviews<span class="pf-count">{{ rating_total }}</span></button>
+      </div>
+
+
+      <!-- ───────── ACTIVE ───────── -->
+      <div class="pf-pane mt-4" id="pf-pane-active">
+        <div class="row g-3">
+
+          {% if profile.role == 'seller' %}
+            <div class="col-sm-6 col-xl-4">
+              {% if profile.can_post_vehicles %}
+                <a href="{% url 'post_vehicle' %}" class="pf-new">
+                  <span class="plus"><i class="bi bi-plus-lg"></i></span>
+                  Post a new vehicle
+                </a>
+              {% elif profile.id_verification_status == 'pending' %}
+                <div class="pf-new locked">
+                  <span class="plus"><i class="bi bi-hourglass-split"></i></span>
+                  ID under review
+                </div>
+              {% else %}
+                <a href="{% url 'verify_identity' %}" class="pf-new locked">
+                  <span class="plus"><i class="bi bi-lock-fill"></i></span>
+                  Verify ID to post
+                </a>
+              {% endif %}
+            </div>
+          {% endif %}
+
+          {% for vehicle in active_listings %}
+            {% include 'core/_profile_tile.html' %}
+          {% endfor %}
+
+        </div>
+
+        {% if not active_listings and profile.role != 'seller' %}
+          <div class="pf-empty">
+            <i class="bi bi-car-front"></i>
+            <h5 class="mt-3 fw-700">You have no listings yet</h5>
+            <p class="mb-0">Become a seller to start posting vehicles.</p>
+          </div>
         {% endif %}
       </div>
 
-      {% if my_listings %}
-        <div class="row g-3">
-          {% for vehicle in my_listings %}
-          <div class="col-md-6">
-            <div class="vehicle-card compact">
-              <div class="vehicle-card-img">
-                {% if vehicle.get_main_photo %}
-                  <img src="{{ vehicle.get_main_photo }}" alt="">
-                {% else %}
-                  <div class="no-photo"><i class="bi bi-car-front-fill"></i></div>
-                {% endif %}
-                <span class="badge-listing-type badge-{{ vehicle.listing_type }}">{{ vehicle.get_listing_type_display }}</span>
-                {% if vehicle.availability_status != 'available' %}
-                  <span
-                    class="badge-listing-type"
-                    style="right:10px;left:auto;background:{% if vehicle.availability_status == 'sold' %}#dc3545{% else %}#f59e0b{% endif %};"
-                  >
-                    {{ vehicle.get_availability_status_display }}
-                  </span>
-                {% endif %}
-              </div>
-              <div class="vehicle-card-body">
-                <h6 class="fw-700 mb-1">{{ vehicle.year }} {{ vehicle.brand }} {{ vehicle.model }}</h6>
-                <div class="vehicle-price small">₱{{ vehicle.price|floatformat:0 }} <span class="text-muted">{{ vehicle.price_unit }}</span></div>
-                <div class="small text-muted mt-1"><i class="bi bi-geo-alt-fill text-warning"></i> {{ vehicle.pickup_location }}</div>
 
-                <div class="mt-2">
-                  <select
-                    id="status-select-{{ vehicle.pk }}"
-                    class="form-select form-select-sm status-select"
-                    onchange="document.getElementById('status-input-{{ vehicle.pk }}').value=this.value; document.getElementById('status-form-{{ vehicle.pk }}').submit();"
-                  >
-                    <option value="available" {% if vehicle.availability_status == 'available' %}selected{% endif %}>Available</option>
-                    {% if vehicle.listing_type == 'rent' %}
-                      <option value="rented" {% if vehicle.availability_status == 'rented' %}selected{% endif %}>Currently Rented</option>
-                    {% else %}
-                      <option value="sold" {% if vehicle.availability_status == 'sold' %}selected{% endif %}>Sold</option>
-                    {% endif %}
-                  </select>
-                  <form
-                    id="status-form-{{ vehicle.pk }}"
-                    method="post"
-                    action="{% url 'update_listing_status' vehicle.pk %}"
-                    class="d-none"
-                  >
-                    {% csrf_token %}
-                    <input type="hidden" name="availability_status" id="status-input-{{ vehicle.pk }}">
-                    <input type="hidden" name="next" value="{% url 'my_profile' %}">
-                  </form>
-                </div>
+      <!-- ───────── SOLD / RENTED ───────── -->
+      <div class="pf-pane mt-4" id="pf-pane-closed" hidden>
+        {% if closed_listings %}
+          <div class="row g-3">
+            {% for vehicle in closed_listings %}
+              {% include 'core/_profile_tile.html' %}
+            {% endfor %}
+          </div>
+        {% else %}
+          <div class="pf-empty">
+            <i class="bi bi-check2-circle"></i>
+            <h5 class="mt-3 fw-700">Nothing here yet</h5>
+            <p class="mb-0">Listings you mark as sold or rented will show up here.</p>
+          </div>
+        {% endif %}
+      </div>
 
-                <div class="d-flex gap-2 mt-3">
-                  <a href="{% url 'vehicle_detail' vehicle.pk %}" class="btn btn-sm btn-outline-primary flex-fill">View</a>
-                  <a href="{% url 'edit_vehicle' vehicle.pk %}" class="btn btn-sm btn-outline-warning flex-fill">Edit</a>
-                  <form method="post" action="{% url 'delete_vehicle' vehicle.pk %}" onsubmit="return confirm('Delete this listing?')">
-                    {% csrf_token %}
-                    <button type="submit" class="btn btn-sm btn-outline-danger">
-                      <i class="bi bi-trash"></i>
-                    </button>
-                  </form>
-                </div>
+
+      <!-- ───────── REVIEWS ───────── -->
+      <div class="pf-pane mt-4" id="pf-pane-reviews" hidden>
+        <div class="pf-card">
+          {% if reviews %}
+            <div class="d-flex align-items-center gap-3 pb-3" style="border-bottom:1px solid var(--border);">
+              <div class="pf-big-rating">{{ rating_avg }}</div>
+              <div>
+                <span class="pf-stars" style="--pct:{{ rating_pct }}%;"><span></span></span>
+                <div class="small text-muted">{{ rating_total }} review{{ rating_total|pluralize }}</div>
               </div>
             </div>
-          </div>
-          {% endfor %}
-        </div>
-      {% else %}
-        <div class="empty-state text-center py-5 bg-light rounded-3">
-          <i class="bi bi-car-front display-1 text-muted"></i>
-          <h5 class="mt-3 fw-700">You have no listings yet</h5>
-          {% if profile.can_post_vehicles %}
-            <p class="text-muted">Post your first vehicle to get started!</p>
-            <a href="{% url 'post_vehicle' %}" class="btn btn-warning mt-2 fw-600">
-              <i class="bi bi-plus-circle me-2"></i>Post a Vehicle
-            </a>
-          {% elif profile.role == 'seller' and profile.id_verification_status == 'pending' %}
-            <p class="text-muted">Your ID is being reviewed. You'll be able to post once an admin verifies it.</p>
-          {% elif profile.role == 'seller' %}
-            <p class="text-muted">Verify your identity to unlock posting your first vehicle.</p>
-            <a href="{% url 'verify_identity' %}" class="btn btn-secondary mt-2 fw-600">
-              <i class="bi bi-lock-fill me-2"></i>Verify ID to Post
-            </a>
+
+            {% for r in reviews %}
+              <div class="pf-review d-flex gap-3">
+                {% if r.rater.profile.profile_picture %}
+                  <img src="{{ r.rater.profile.profile_picture.url }}" class="pf-review-av" alt="">
+                {% else %}
+                  <div class="pf-review-av"><i class="bi bi-person-fill"></i></div>
+                {% endif %}
+                <div class="flex-grow-1">
+                  <div class="d-flex align-items-center justify-content-between flex-wrap gap-1">
+                    <strong class="small">{{ r.rater.profile.get_full_name|default:r.rater.username }}</strong>
+                    <span class="text-muted" style="font-size:.74rem;">{{ r.created_at|date:"M d, Y" }}</span>
+                  </div>
+                  <span class="pf-stars" style="--pct:{% widthratio r.score 5 100 %}%; font-size:.85rem;"><span></span></span>
+                  {% if r.comment %}<p class="small mb-0 mt-1" style="color:var(--text-secondary);">{{ r.comment|linebreaksbr }}</p>{% endif %}
+                </div>
+              </div>
+            {% endfor %}
           {% else %}
-            <p class="text-muted">Become a seller to start posting vehicles.</p>
-            <a href="{% url 'become_seller' %}" class="btn btn-outline-warning mt-2 fw-600">
-              <i class="bi bi-shop me-2"></i>Become a Seller
-            </a>
+            <div class="pf-empty">
+              <i class="bi bi-star"></i>
+              <h5 class="mt-3 fw-700">No reviews yet</h5>
+              <p class="mb-0">Buyers can rate you from any of your listings.</p>
+            </div>
           {% endif %}
         </div>
-      {% endif %}
+      </div>
+
     </div>
   </div>
 </div>
+
+
+<!-- ========================================================= -->
+<!-- EDIT PROFILE MODAL                                         -->
+<!-- ========================================================= -->
+<div class="modal fade" id="editProfileModal" tabindex="-1" aria-labelledby="editProfileLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
+    <div class="modal-content" style="background:var(--bg-card);border:1px solid var(--border);border-radius:16px;">
+
+      <form method="post" enctype="multipart/form-data" novalidate>
+        {% csrf_token %}
+
+        <div class="modal-header" style="border-color:var(--border);">
+          <h5 class="modal-title fw-700" id="editProfileLabel"><i class="bi bi-pencil-fill me-2 text-primary"></i>Edit Profile</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+
+        <div class="modal-body">
+
+          <div class="d-flex align-items-center gap-3 mb-3">
+            {% if profile.profile_picture %}
+              <img src="{{ profile.profile_picture.url }}" id="pfModalPreview" class="pf-modal-avatar" alt="">
+            {% else %}
+              <div id="pfModalPreview" class="pf-modal-avatar"><i class="bi bi-person-fill"></i></div>
+            {% endif %}
+            <div class="small text-muted">
+              Choose a clear photo of yourself. Buyers are more likely to message sellers with a real photo.
+            </div>
+          </div>
+
+          {% if form.non_field_errors %}
+            <div class="alert alert-danger small">{{ form.non_field_errors.0 }}</div>
+          {% endif %}
+
+          <div class="row g-3">
+            {% for field in form %}
+              <div class="{% if field.name == 'first_name' or field.name == 'last_name' %}col-6{% else %}col-12{% endif %}">
+                <label class="form-label fw-600 small" for="{{ field.id_for_label }}">{{ field.label }}</label>
+                {{ field }}
+                {% if field.errors %}<div class="text-danger small mt-1">{{ field.errors.0 }}</div>{% endif %}
+              </div>
+            {% endfor %}
+          </div>
+
+        </div>
+
+        <div class="modal-footer" style="border-color:var(--border);">
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-primary fw-600">
+            <i class="bi bi-check-circle me-2"></i>Save Changes
+          </button>
+        </div>
+
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+
+{% block extra_js %}
+<script>
+(function () {
+
+    // ── Tabs ──
+    const tabs  = document.querySelectorAll('[data-pf-tab]');
+    const panes = { active: 'pf-pane-active', closed: 'pf-pane-closed', reviews: 'pf-pane-reviews' };
+
+    function showTab(name) {
+        tabs.forEach(function (t) { t.classList.toggle('active', t.dataset.pfTab === name); });
+        Object.keys(panes).forEach(function (k) {
+            document.getElementById(panes[k]).hidden = (k !== name);
+        });
+        try { sessionStorage.setItem('pfTab', name); } catch (e) {}
+    }
+
+    tabs.forEach(function (t) {
+        t.addEventListener('click', function () { showTab(t.dataset.pfTab); });
+    });
+
+    try {
+        const saved = sessionStorage.getItem('pfTab');
+        if (saved && panes[saved]) { showTab(saved); }
+    } catch (e) {}
+
+    // ── Live photo preview inside the edit modal ──
+    const fileInput = document.querySelector('#editProfileModal input[type="file"]');
+    if (fileInput) {
+        fileInput.addEventListener('change', function () {
+            const file = fileInput.files && fileInput.files[0];
+            if (!file) { return; }
+            const url = URL.createObjectURL(file);
+            const old = document.getElementById('pfModalPreview');
+            const img = document.createElement('img');
+            img.id = 'pfModalPreview';
+            img.className = 'pf-modal-avatar';
+            img.alt = '';
+            img.src = url;
+            old.replaceWith(img);
+        });
+    }
+
+    // ── Re-open the modal if the form came back with errors ──
+    {% if form.errors %}
+    new bootstrap.Modal(document.getElementById('editProfileModal')).show();
+    {% endif %}
+
+})();
+</script>
 {% endblock %}

@@ -1,0 +1,933 @@
+{% comment %}
+  Global chat widget: floating bubble + panel, shown on every page for
+  logged-in users with a verified email.
+
+  - Click the bubble to show the chat, click again to hide it.
+  - Panel has two views: the inbox (all conversations) and one thread.
+  - On a vehicle page, buyers jump straight into the thread for that
+    vehicle; sellers see their inbox with that vehicle's chats first.
+  - Pages can pass vehicle context with an element like:
+      <div id="chatListingContext" hidden data-listing-id="1" data-is-owner="0"
+           data-title="..." data-seller-name="..." data-seller-avatar="..."></div>
+{% endcomment %}
+
+<div
+    id="acw"
+    data-inbox-url="{% url 'chat_inbox' %}"
+    data-thread-url="{% url 'chat_thread' 0 %}"
+    data-send-url="{% url 'chat_send' 0 %}"
+    data-start-url="{% url 'send_chat_message' 0 %}"
+>
+
+    <div id="acwPanel" class="acw-panel" role="dialog" aria-label="Messages">
+
+        <!-- ───────── INBOX VIEW ───────── -->
+        <div id="acwListView" class="acw-view">
+
+            <div class="acw-header">
+                <div class="acw-title">
+                    <div class="fw-700">Messages</div>
+                    <small class="text-muted">Your conversations about vehicles</small>
+                </div>
+                <button type="button" class="acw-iconbtn" data-acw-close aria-label="Hide chat" title="Hide chat">
+                    <i class="bi bi-x-lg"></i>
+                </button>
+            </div>
+
+            <div id="acwFilters" class="acw-filters" hidden></div>
+
+            <div id="acwList" class="acw-scroll"></div>
+
+        </div>
+
+        <!-- ───────── THREAD VIEW ───────── -->
+        <div id="acwThreadView" class="acw-view" hidden>
+
+            <div class="acw-header">
+                <button type="button" id="acwBack" class="acw-iconbtn" aria-label="Back to messages" title="Back to messages">
+                    <i class="bi bi-arrow-left"></i>
+                </button>
+
+                <div id="acwThreadAvatar" class="acw-avatar"></div>
+
+                <div class="acw-title">
+                    <div id="acwThreadName" class="fw-700 text-truncate"></div>
+                    <a id="acwThreadVehicle" class="acw-vehicle-link text-truncate d-block" href="#"></a>
+                </div>
+
+                <button type="button" class="acw-iconbtn" data-acw-close aria-label="Hide chat" title="Hide chat">
+                    <i class="bi bi-x-lg"></i>
+                </button>
+            </div>
+
+            <div id="acwMessages" class="acw-scroll acw-messages">
+                <div id="acwEmpty" class="acw-empty">
+                    <i class="bi bi-chat-dots"></i>
+                    <p class="fw-700 mt-2 mb-1">Start a conversation</p>
+                    <small class="text-muted">Ask about availability, condition, viewing, or location.</small>
+                </div>
+            </div>
+
+            <form id="acwForm" class="acw-form" autocomplete="off">
+                {% csrf_token %}
+                <div class="input-group">
+                    <textarea
+                        id="acwInput"
+                        name="message"
+                        class="form-control"
+                        rows="2"
+                        maxlength="2000"
+                        required
+                        placeholder="Type a message..."
+                        style="resize:none;"
+                    ></textarea>
+                    <button type="submit" id="acwSend" class="btn btn-primary px-3" aria-label="Send">
+                        <i class="bi bi-send-fill"></i>
+                    </button>
+                </div>
+                <small id="acwError" class="text-danger d-block mt-2" style="font-size:.75rem;" hidden></small>
+            </form>
+
+        </div>
+
+    </div>
+
+    <button
+        type="button"
+        id="acwBubble"
+        class="acw-bubble"
+        aria-controls="acwPanel"
+        aria-expanded="false"
+        aria-label="Toggle chat"
+        title="Chat"
+    >
+        <i class="bi bi-chat-dots-fill" id="acwBubbleIcon"></i>
+        <span class="acw-bubble-label">Chat</span>
+        <span id="acwBadge" class="acw-badge" {% if not unread_chat_total %}hidden{% endif %}>{% if unread_chat_total > 99 %}99+{% else %}{{ unread_chat_total }}{% endif %}</span>
+    </button>
+
+</div>
+
+
+<style>
+
+/* ── Bubble ── */
+.acw-bubble {
+    position: fixed;
+    right: 28px;
+    bottom: 28px;
+    z-index: 1050;
+    border: none;
+    border-radius: 50px;
+    padding: 14px 21px;
+    background: #2563eb;
+    color: #fff;
+    font-size: 1rem;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    box-shadow: 0 8px 25px rgba(0, 0, 0, .20);
+    transition: transform .2s ease, box-shadow .2s ease;
+}
+
+.acw-bubble:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 12px 30px rgba(0, 0, 0, .25);
+    color: #fff;
+}
+
+.acw-bubble i { font-size: 1.2rem; }
+
+/* Red unread badge */
+.acw-badge {
+    position: absolute;
+    top: -6px;
+    right: -4px;
+    min-width: 22px;
+    height: 22px;
+    padding: 0 6px;
+    border-radius: 11px;
+    background: #ef4444;
+    color: #fff;
+    font-size: .72rem;
+    font-weight: 800;
+    line-height: 22px;
+    text-align: center;
+    border: 2px solid var(--bg-body, #fff);
+    box-shadow: 0 2px 6px rgba(239, 68, 68, .45);
+}
+
+.acw-badge[hidden] { display: none; }
+
+/* ── Panel ── */
+.acw-panel {
+    position: fixed;
+    right: 28px;
+    bottom: 96px;
+    z-index: 1049;
+    width: 380px;
+    max-width: calc(100vw - 24px);
+    height: min(560px, calc(100vh - 130px));
+    display: none;
+    background: var(--bg-card);
+    color: var(--text-primary);
+    border: 1px solid var(--border);
+    border-radius: 18px;
+    overflow: hidden;
+    box-shadow: 0 16px 48px rgba(0, 0, 0, .25);
+}
+
+.acw-panel.open {
+    display: block;
+    animation: acwIn .18s ease-out;
+}
+
+@keyframes acwIn {
+    from { opacity: 0; transform: translateY(10px) scale(.98); }
+    to   { opacity: 1; transform: none; }
+}
+
+.acw-view {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+}
+
+.acw-view[hidden] { display: none; }
+
+.acw-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 14px;
+    background: var(--bg-subtle);
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+}
+
+.acw-title { flex: 1; min-width: 0; }
+
+.acw-iconbtn {
+    border: none;
+    background: transparent;
+    color: var(--text-secondary);
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+.acw-iconbtn:hover { background: var(--bg-card); }
+
+.acw-vehicle-link {
+    font-size: .76rem;
+    color: var(--text-muted);
+    text-decoration: none;
+}
+
+.acw-vehicle-link:hover { color: var(--blue-mid, #2563eb); text-decoration: underline; }
+
+.acw-avatar {
+    width: 38px;
+    height: 38px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--bg-card);
+    color: var(--text-secondary);
+    border: 1px solid var(--border);
+}
+
+.acw-avatar img { width: 100%; height: 100%; object-fit: cover; }
+
+.acw-scroll { flex: 1; overflow-y: auto; min-height: 0; }
+
+/* ── Filters (seller on their own vehicle page) ── */
+.acw-filters {
+    display: flex;
+    gap: 8px;
+    padding: 8px 12px;
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+}
+
+.acw-filters[hidden] { display: none; }
+
+.acw-chip {
+    border: 1px solid var(--border);
+    background: transparent;
+    color: var(--text-secondary);
+    border-radius: 20px;
+    padding: 3px 12px;
+    font-size: .78rem;
+    font-weight: 600;
+}
+
+.acw-chip.active {
+    background: #2563eb;
+    border-color: #2563eb;
+    color: #fff;
+}
+
+.acw-chip .acw-dot { margin-left: 6px; }
+
+/* ── Inbox rows ── */
+.acw-row {
+    width: 100%;
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+    text-align: left;
+    padding: 12px 14px;
+    border: none;
+    border-bottom: 1px solid var(--border);
+    background: transparent;
+    color: inherit;
+}
+
+.acw-row:hover { background: var(--bg-subtle); }
+
+.acw-row .acw-avatar { width: 44px; height: 44px; }
+
+.acw-row-main { flex: 1; min-width: 0; }
+
+.acw-row-top {
+    display: flex;
+    justify-content: space-between;
+    gap: 8px;
+}
+
+.acw-row-name { font-weight: 700; font-size: .9rem; }
+.acw-row-time { font-size: .7rem; color: var(--text-muted); flex-shrink: 0; }
+
+.acw-row-vehicle {
+    font-size: .74rem;
+    color: var(--blue-mid, #2563eb);
+    font-weight: 600;
+}
+
+.acw-row-preview {
+    font-size: .8rem;
+    color: var(--text-muted);
+}
+
+.acw-row.unread .acw-row-preview { color: var(--text-primary); font-weight: 600; }
+
+.acw-dot {
+    display: inline-block;
+    min-width: 18px;
+    height: 18px;
+    padding: 0 5px;
+    border-radius: 9px;
+    background: #ef4444;
+    color: #fff;
+    font-size: .65rem;
+    font-weight: 800;
+    line-height: 18px;
+    text-align: center;
+    flex-shrink: 0;
+}
+
+.acw-tag {
+    font-size: .62rem;
+    font-weight: 700;
+    padding: 1px 7px;
+    border-radius: 10px;
+    background: rgba(37, 99, 235, .12);
+    color: #2563eb;
+    margin-left: 6px;
+    vertical-align: middle;
+}
+
+/* ── Empty state ── */
+.acw-empty {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 24px;
+}
+
+.acw-empty i { font-size: 2.5rem; color: var(--text-faint); }
+
+/* ── Messages ── */
+.acw-messages { padding: 15px; }
+
+.acw-msg { display: flex; margin-bottom: 14px; }
+.acw-msg.mine { justify-content: flex-end; }
+.acw-msg-col { max-width: 82%; }
+
+.acw-msg-bubble {
+    padding: 10px 14px;
+    word-break: break-word;
+    background: var(--bg-subtle);
+    color: var(--text-primary);
+    border: 1px solid var(--border);
+    border-radius: 16px 16px 16px 4px;
+}
+
+.acw-msg.mine .acw-msg-bubble {
+    background: #2563eb;
+    color: #fff;
+    border-color: #2563eb;
+    border-radius: 16px 16px 4px 16px;
+}
+
+.acw-msg-time { font-size: .68rem; margin-top: 4px; color: var(--text-muted); }
+.acw-msg.mine .acw-msg-time { text-align: right; }
+
+.acw-form {
+    padding: 12px;
+    border-top: 1px solid var(--border);
+    flex-shrink: 0;
+}
+
+@media (max-width: 576px) {
+    .acw-bubble {
+        right: 18px;
+        bottom: 18px;
+        width: 56px;
+        height: 56px;
+        padding: 0;
+        justify-content: center;
+    }
+    .acw-bubble-label { display: none; }
+    .acw-panel {
+        right: 12px;
+        bottom: 86px;
+        height: calc(100vh - 110px);
+    }
+}
+
+</style>
+
+
+<script>
+/* =========================================================
+   GLOBAL CHAT WIDGET
+   ========================================================= */
+(function () {
+
+    const root = document.getElementById('acw');
+    if (!root) { return; }
+
+    const panel      = document.getElementById('acwPanel');
+    const bubble     = document.getElementById('acwBubble');
+    const bubbleIcon = document.getElementById('acwBubbleIcon');
+    const badge      = document.getElementById('acwBadge');
+    const listView   = document.getElementById('acwListView');
+    const threadView = document.getElementById('acwThreadView');
+    const listEl     = document.getElementById('acwList');
+    const filtersEl  = document.getElementById('acwFilters');
+    const msgsEl     = document.getElementById('acwMessages');
+    const emptyEl    = document.getElementById('acwEmpty');
+    const form       = document.getElementById('acwForm');
+    const input      = document.getElementById('acwInput');
+    const sendBtn    = document.getElementById('acwSend');
+    const errorEl    = document.getElementById('acwError');
+    const backBtn    = document.getElementById('acwBack');
+
+    const inboxUrl  = root.dataset.inboxUrl;
+    const urlFor    = function (tpl, id) { return tpl.replace('/0/', '/' + id + '/'); };
+
+    const OPEN_INTERVAL   = 3000;    // chat is on screen
+    const CLOSED_INTERVAL = 10000;   // only keeping the badge fresh
+
+    // Vehicle page context (optional)
+    const ctxEl = document.getElementById('chatListingContext');
+    const ctx = ctxEl ? {
+        listingId: ctxEl.dataset.listingId,
+        isOwner:   ctxEl.dataset.isOwner === '1',
+        title:     ctxEl.dataset.title || '',
+        sellerName:   ctxEl.dataset.sellerName || 'Seller',
+        sellerAvatar: ctxEl.dataset.sellerAvatar || '',
+        url:       window.location.pathname
+    } : null;
+
+    let isOpen = false;
+    let view = 'list';              // 'list' | 'thread'
+    let convs = [];                 // latest inbox
+    let filter = 'vehicle';         // seller on own vehicle page: 'vehicle' | 'all'
+    let current = null;             // open conversation (or null = new thread)
+    let lastId = 0;
+    const seen = new Set();
+    let timer = null, inFlight = false, pending = false, firstOpen = true;
+
+
+    /* ---------- tiny helpers ---------- */
+
+    function getCsrf() {
+        const el = form.querySelector('input[name=csrfmiddlewaretoken]');
+        return el ? el.value : '';
+    }
+
+    function nearBottom() {
+        return msgsEl.scrollHeight - msgsEl.scrollTop - msgsEl.clientHeight < 80;
+    }
+
+    function scrollToBottom() { msgsEl.scrollTop = msgsEl.scrollHeight; }
+
+    function setBadge(n) {
+        badge.textContent = n > 99 ? '99+' : String(n);
+        badge.hidden = !(n > 0);
+    }
+
+    // Keep the nav-bar bell in sync (the original notification is untouched).
+    function setNavBadge(n) {
+        const link = document.querySelector('a[href$="/notifications/"]');
+        if (!link || typeof n !== 'number') { return; }
+        let el = link.querySelector('.notif-badge');
+        if (n > 0) {
+            if (!el) {
+                el = document.createElement('span');
+                el.className = 'badge bg-danger rounded-pill notif-badge';
+                link.appendChild(el);
+            }
+            el.textContent = n;
+        } else if (el) {
+            el.remove();
+        }
+    }
+
+    function applyCounts(data) {
+        if (typeof data.unread_total === 'number') { setBadge(data.unread_total); }
+        setNavBadge(data.unread_notifications);
+    }
+
+    function avatarInto(el, url) {
+        el.innerHTML = '';
+        if (url) {
+            const img = document.createElement('img');
+            img.src = url;
+            img.alt = '';
+            el.appendChild(img);
+        } else {
+            const i = document.createElement('i');
+            i.className = 'bi bi-person-fill';
+            el.appendChild(i);
+        }
+    }
+
+    async function getJson(url) {
+        const res = await fetch(url, {
+            headers: { 'X-Requested-With': 'XMLHttpRequest' },
+            credentials: 'same-origin'
+        });
+        const type = res.headers.get('content-type') || '';
+        if (!res.ok || type.indexOf('application/json') === -1) { return null; }
+        return res.json();
+    }
+
+
+    /* ---------- inbox view ---------- */
+
+    function renderFilters() {
+        const show = !!(ctx && ctx.isOwner);
+        filtersEl.hidden = !show;
+        if (!show) { return; }
+
+        const here = convs.filter(function (c) { return String(c.listing_id) === ctx.listingId; });
+        const hereUnread = here.reduce(function (n, c) { return n + c.unread; }, 0);
+        const allUnread = convs.reduce(function (n, c) { return n + c.unread; }, 0);
+
+        filtersEl.innerHTML = '';
+        [['vehicle', 'This vehicle', hereUnread], ['all', 'All vehicles', allUnread]].forEach(function (f) {
+            const b = document.createElement('button');
+            b.type = 'button';
+            b.className = 'acw-chip' + (filter === f[0] ? ' active' : '');
+            b.appendChild(document.createTextNode(f[1]));
+            if (f[2] > 0) {
+                const d = document.createElement('span');
+                d.className = 'acw-dot';
+                d.textContent = f[2];
+                b.appendChild(d);
+            }
+            b.addEventListener('click', function () { filter = f[0]; renderList(); });
+            filtersEl.appendChild(b);
+        });
+    }
+
+    function renderList() {
+        renderFilters();
+
+        let rows = convs;
+        if (ctx && ctx.isOwner && filter === 'vehicle') {
+            rows = convs.filter(function (c) { return String(c.listing_id) === ctx.listingId; });
+        }
+
+        listEl.innerHTML = '';
+
+        if (!rows.length) {
+            const empty = document.createElement('div');
+            empty.className = 'acw-empty';
+            empty.innerHTML =
+                '<i class="bi bi-chat-dots"></i>' +
+                '<p class="fw-700 mt-2 mb-1"></p>' +
+                '<small class="text-muted"></small>';
+            const narrowed = ctx && ctx.isOwner && filter === 'vehicle' && convs.length;
+            empty.querySelector('p').textContent = narrowed ? 'No messages for this vehicle' : 'No conversations yet';
+            empty.querySelector('small').textContent = narrowed
+                ? 'Switch to "All vehicles" to see your other chats.'
+                : 'Open a vehicle listing and message the seller to start chatting.';
+            listEl.appendChild(empty);
+            return;
+        }
+
+        rows.forEach(function (c) {
+            const row = document.createElement('button');
+            row.type = 'button';
+            row.className = 'acw-row' + (c.unread > 0 ? ' unread' : '');
+
+            const av = document.createElement('div');
+            av.className = 'acw-avatar';
+            avatarInto(av, c.other_avatar);
+
+            const main = document.createElement('div');
+            main.className = 'acw-row-main';
+
+            const top = document.createElement('div');
+            top.className = 'acw-row-top';
+            const name = document.createElement('span');
+            name.className = 'acw-row-name text-truncate';
+            name.textContent = c.other_name;
+            const time = document.createElement('span');
+            time.className = 'acw-row-time';
+            time.textContent = c.time;
+            top.appendChild(name);
+            top.appendChild(time);
+
+            const veh = document.createElement('div');
+            veh.className = 'acw-row-vehicle text-truncate';
+            veh.textContent = c.listing_title;
+            if (ctx && String(c.listing_id) === ctx.listingId) {
+                const tag = document.createElement('span');
+                tag.className = 'acw-tag';
+                tag.textContent = 'This vehicle';
+                veh.appendChild(tag);
+            }
+
+            const prevWrap = document.createElement('div');
+            prevWrap.className = 'd-flex align-items-center justify-content-between gap-2';
+            const prev = document.createElement('span');
+            prev.className = 'acw-row-preview text-truncate';
+            prev.textContent = (c.last_mine ? 'You: ' : '') + c.preview;
+            prevWrap.appendChild(prev);
+            if (c.unread > 0) {
+                const dot = document.createElement('span');
+                dot.className = 'acw-dot';
+                dot.textContent = c.unread;
+                prevWrap.appendChild(dot);
+            }
+
+            main.appendChild(top);
+            main.appendChild(veh);
+            main.appendChild(prevWrap);
+
+            row.appendChild(av);
+            row.appendChild(main);
+            row.addEventListener('click', function () { openThread(c); });
+            listEl.appendChild(row);
+        });
+    }
+
+    function showList() {
+        view = 'list';
+        current = null;
+        listView.hidden = false;
+        threadView.hidden = true;
+        renderList();
+        pollInbox();
+        schedule();
+    }
+
+
+    /* ---------- thread view ---------- */
+
+    function clearMessages() {
+        seen.clear();
+        lastId = 0;
+        msgsEl.querySelectorAll('.acw-msg').forEach(function (m) { m.remove(); });
+        emptyEl.style.display = '';
+        showError('');
+    }
+
+    function showThread(meta) {
+        view = 'thread';
+        listView.hidden = true;
+        threadView.hidden = false;
+
+        document.getElementById('acwThreadName').textContent = meta.name;
+        avatarInto(document.getElementById('acwThreadAvatar'), meta.avatar);
+
+        const link = document.getElementById('acwThreadVehicle');
+        link.textContent = meta.title;
+        link.href = meta.url;
+
+        input.placeholder = meta.placeholder;
+        schedule();
+    }
+
+    function openThread(c) {
+        current = c;
+        clearMessages();
+        showThread({
+            name: c.other_name,
+            avatar: c.other_avatar,
+            title: c.listing_title,
+            url: c.listing_url,
+            placeholder: c.as_seller ? 'Reply to this buyer...' : 'Type a message to the seller...'
+        });
+        pollThread();
+        input.focus();
+    }
+
+    // Buyer on a vehicle page with no conversation yet.
+    function openNewThread() {
+        current = null;
+        clearMessages();
+        showThread({
+            name: ctx.sellerName,
+            avatar: ctx.sellerAvatar,
+            title: ctx.title,
+            url: ctx.url,
+            placeholder: 'Type a message to the seller...'
+        });
+        input.focus();
+    }
+
+    function appendMessage(m) {
+        if (seen.has(m.id)) { return; }
+        seen.add(m.id);
+        lastId = Math.max(lastId, m.id);
+        emptyEl.style.display = 'none';
+
+        const row = document.createElement('div');
+        row.className = 'acw-msg' + (m.mine ? ' mine' : '');
+        const col = document.createElement('div');
+        col.className = 'acw-msg-col';
+        const bub = document.createElement('div');
+        bub.className = 'acw-msg-bubble';
+        bub.innerHTML = m.html;               // server-escaped (linebreaksbr)
+        const time = document.createElement('div');
+        time.className = 'acw-msg-time';
+        time.textContent = m.time;
+        col.appendChild(bub);
+        col.appendChild(time);
+        row.appendChild(col);
+        msgsEl.appendChild(row);
+    }
+
+
+    /* ---------- polling ---------- */
+
+    async function pollInbox() {
+        try {
+            const data = await getJson(inboxUrl);
+            if (!data) { return; }
+            convs = data.conversations;
+            applyCounts(data);
+            if (isOpen && view === 'list') { renderList(); }
+        } catch (e) { /* try again next tick */ }
+    }
+
+    async function pollThread() {
+        if (!current) { return pollInbox(); }
+        if (inFlight) { pending = true; return; }
+        inFlight = true;
+        pending = false;
+        const convId = current.id;
+
+        try {
+            const q = new URLSearchParams({ after: lastId });
+            if (isOpen) { q.set('mark_read', '1'); }
+            const data = await getJson(urlFor(root.dataset.threadUrl, convId) + '?' + q);
+            if (!data) { return; }
+
+            // User switched thread while this was in flight: drop stale answer.
+            if (!current || current.id !== convId || view !== 'thread') { return; }
+
+            const stick = seen.size === 0 || nearBottom();
+            data.messages.forEach(appendMessage);
+            if (data.messages.length && stick) { scrollToBottom(); }
+            applyCounts(data);
+        } catch (e) {
+            /* try again next tick */
+        } finally {
+            inFlight = false;
+            if (pending) { pollThread(); }
+        }
+    }
+
+    function tick() {
+        return (isOpen && view === 'thread') ? pollThread() : pollInbox();
+    }
+
+    function schedule() {
+        clearTimeout(timer);
+        if (document.hidden) { return; }
+        timer = setTimeout(async function () {
+            await tick();
+            schedule();
+        }, isOpen ? OPEN_INTERVAL : CLOSED_INTERVAL);
+    }
+
+
+    /* ---------- open / close ---------- */
+
+    async function setOpen(open) {
+        isOpen = open;
+        panel.classList.toggle('open', open);
+        bubble.setAttribute('aria-expanded', open ? 'true' : 'false');
+        bubbleIcon.className = open ? 'bi bi-x-lg' : 'bi bi-chat-dots-fill';
+
+        if (!open) { schedule(); return; }
+
+        if (firstOpen) {
+            firstOpen = false;
+            await pollInbox();
+
+            if (ctx && !ctx.isOwner) {
+                // Buyer on a vehicle page: go straight to that chat.
+                const existing = convs.find(function (c) {
+                    return String(c.listing_id) === ctx.listingId;
+                });
+                if (existing) { openThread(existing); } else { openNewThread(); }
+            } else if (ctx && ctx.isOwner) {
+                // Seller on their own vehicle: show that vehicle's chats first;
+                // fall back to everything if this vehicle has none yet.
+                const here = convs.some(function (c) { return String(c.listing_id) === ctx.listingId; });
+                filter = here ? 'vehicle' : 'all';
+                showList();
+            } else {
+                showList();
+            }
+        } else if (view === 'thread') {
+            pollThread();
+            scrollToBottom();
+            input.focus();
+        } else {
+            showList();
+        }
+        schedule();
+    }
+
+    bubble.addEventListener('click', function () { setOpen(!isOpen); });
+    document.querySelectorAll('[data-acw-close]').forEach(function (b) {
+        b.addEventListener('click', function () { setOpen(false); });
+    });
+    backBtn.addEventListener('click', showList);
+
+    document.addEventListener('keydown', function (e) {
+        if (e.key === 'Escape' && isOpen) { setOpen(false); }
+    });
+
+    document.addEventListener('visibilitychange', function () {
+        if (!document.hidden) { tick(); }
+        schedule();
+    });
+
+
+    /* ---------- send without reloading ---------- */
+
+    function showError(text) {
+        errorEl.textContent = text || '';
+        errorEl.hidden = !text;
+    }
+
+    async function sendMessage() {
+        const text = input.value.trim();
+        if (!text || sendBtn.disabled) { return; }
+
+        sendBtn.disabled = true;
+        showError('');
+
+        try {
+            const body = new FormData();
+            body.append('message', text);
+            body.append('csrfmiddlewaretoken', getCsrf());
+
+            let url;
+            if (current) {
+                url = urlFor(root.dataset.sendUrl, current.id);
+            } else {
+                url = urlFor(root.dataset.startUrl, ctx.listingId);   // first message
+            }
+
+            const res = await fetch(url, {
+                method: 'POST',
+                body: body,
+                headers: { 'X-Requested-With': 'XMLHttpRequest' },
+                credentials: 'same-origin'
+            });
+
+            const type = res.headers.get('content-type') || '';
+            if (type.indexOf('application/json') === -1) {
+                showError('Could not send your message. Please reload the page and try again.');
+                return;
+            }
+
+            const data = await res.json();
+            if (!data.ok) {
+                showError(data.error || 'Could not send your message.');
+                return;
+            }
+
+            // First message of a brand-new thread: it now exists for real.
+            if (!current && data.conversation_id) {
+                current = {
+                    id: data.conversation_id,
+                    listing_id: ctx.listingId,
+                    listing_title: ctx.title,
+                    listing_url: ctx.url,
+                    other_name: ctx.sellerName,
+                    other_avatar: ctx.sellerAvatar,
+                    as_seller: false
+                };
+            }
+
+            appendMessage(data.message);
+            scrollToBottom();
+            input.value = '';
+            input.focus();
+            pollInbox();                     // refresh list + counters now
+
+        } catch (e) {
+            showError('Network error. Please try again.');
+        } finally {
+            sendBtn.disabled = false;
+        }
+    }
+
+    form.addEventListener('submit', function (e) {
+        e.preventDefault();
+        sendMessage();
+    });
+
+    // Enter sends, Shift+Enter inserts a new line.
+    input.addEventListener('keydown', function (e) {
+        if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) {
+            e.preventDefault();
+            sendMessage();
+        }
+    });
+
+
+    /* ---------- start ---------- */
+
+    pollInbox();
+    schedule();
+
+    // Deep link: ...#vehicle-chat (or #chat) opens the chat straight away.
+    if (window.location.hash === '#vehicle-chat' || window.location.hash === '#chat') {
+        setOpen(true);
+    }
+
+})();
+</script>
