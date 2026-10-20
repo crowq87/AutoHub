@@ -1,0 +1,80 @@
+{# One listing tile for the profile page. Expects `vehicle`. #}
+<div class="col-sm-6 col-xl-4">
+  <div class="pf-tile">
+
+    <a href="{% url 'vehicle_detail' vehicle.pk %}" class="pf-tile-img">
+      {% if vehicle.get_main_photo %}
+        <img src="{{ vehicle.get_main_photo }}" alt="{{ vehicle.year }} {{ vehicle.brand }} {{ vehicle.model }}"
+             {% if vehicle.availability_status != 'available' %}style="filter:grayscale(1);opacity:.75;"{% endif %}>
+      {% else %}
+        <div class="no-photo"><i class="bi bi-car-front-fill"></i></div>
+      {% endif %}
+
+      {% if not vehicle.is_approved %}
+        <span class="pf-status" style="background:#6b7280;">Pending approval</span>
+      {% elif vehicle.availability_status == 'sold' %}
+        <span class="pf-status" style="background:#ef4444;">Sold</span>
+      {% elif vehicle.availability_status == 'rented' %}
+        <span class="pf-status" style="background:#f59e0b;">Currently rented</span>
+      {% else %}
+        <span class="pf-status" style="background:#10b981;">{{ vehicle.get_listing_type_display }}</span>
+      {% endif %}
+    </a>
+
+    <div class="pf-tile-body">
+      <a href="{% url 'vehicle_detail' vehicle.pk %}" class="pf-tile-title">
+        {{ vehicle.year }} {{ vehicle.brand }} {{ vehicle.model }}
+      </a>
+      <div class="pf-tile-loc"><i class="bi bi-geo-alt-fill me-1" style="color:var(--orange);"></i>{{ vehicle.pickup_location }}</div>
+    </div>
+
+    <div class="pf-tile-foot">
+      <div class="pf-price">
+        ₱{{ vehicle.price|floatformat:0 }}
+        {% if vehicle.price_unit and vehicle.price_unit != 'total' %}<small>/ {{ vehicle.price_unit }}</small>{% endif %}
+      </div>
+
+      <div class="dropdown pf-menu">
+        <button type="button" class="pf-kebab" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Listing actions">
+          <i class="bi bi-three-dots-vertical"></i>
+        </button>
+        <ul class="dropdown-menu dropdown-menu-end shadow">
+          <li><a class="dropdown-item" href="{% url 'vehicle_detail' vehicle.pk %}"><i class="bi bi-eye me-2"></i>View</a></li>
+          <li><a class="dropdown-item" href="{% url 'edit_vehicle' vehicle.pk %}"><i class="bi bi-pencil me-2"></i>Edit</a></li>
+          <li><hr class="dropdown-divider"></li>
+          {% if vehicle.availability_status == 'available' %}
+            <li>
+              <form method="post" action="{% url 'update_listing_status' vehicle.pk %}">
+                {% csrf_token %}
+                <input type="hidden" name="next" value="{% url 'my_profile' %}">
+                {% if vehicle.listing_type == 'rent' %}
+                  <input type="hidden" name="availability_status" value="rented">
+                  <button type="submit" class="dropdown-item"><i class="bi bi-flag me-2"></i>Mark as rented</button>
+                {% else %}
+                  <input type="hidden" name="availability_status" value="sold">
+                  <button type="submit" class="dropdown-item"><i class="bi bi-check2-circle me-2"></i>Mark as sold</button>
+                {% endif %}
+              </form>
+            </li>
+          {% else %}
+            <li>
+              <form method="post" action="{% url 'update_listing_status' vehicle.pk %}">
+                {% csrf_token %}
+                <input type="hidden" name="next" value="{% url 'my_profile' %}">
+                <input type="hidden" name="availability_status" value="available">
+                <button type="submit" class="dropdown-item"><i class="bi bi-arrow-counterclockwise me-2"></i>Mark as available</button>
+              </form>
+            </li>
+          {% endif %}
+          <li>
+            <form method="post" action="{% url 'delete_vehicle' vehicle.pk %}" onsubmit="return confirm('Remove this listing?');">
+              {% csrf_token %}
+              <button type="submit" class="dropdown-item text-danger"><i class="bi bi-trash me-2"></i>Delete</button>
+            </form>
+          </li>
+        </ul>
+      </div>
+    </div>
+
+  </div>
+</div>

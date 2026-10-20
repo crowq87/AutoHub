@@ -1089,7 +1089,24 @@ def delete_photo(request, photo_id):
 @login_required
 def my_profile(request):
     profile, _ = UserProfile.objects.get_or_create(user=request.user)
-    my_listings = VehicleListing.objects.filter(owner=request.user, is_active=True).order_by('-created_at')
+    my_listings = list(
+        VehicleListing.objects.filter(owner=request.user, is_active=True)
+        .prefetch_related('photos')
+        .order_by('-created_at')
+    )
+    # Active = still available; Sold / Rented go to their own tab.
+    active_listings = [l for l in my_listings if l.availability_status == 'available']
+    closed_listings = [l for l in my_listings if l.availability_status != 'available']
+
+    # Reviews other users have left on this seller's account.
+    reviews = list(
+        SellerRating.objects.filter(seller=request.user)
+        .select_related('rater__profile')
+        .order_by('-created_at')
+    )
+    rating_total = len(reviews)
+    rating_avg = round(sum(r.score for r in reviews) / rating_total, 1) if rating_total else 0
+    rating_pct = int(round(rating_avg / 5 * 100))
 
     if request.method == 'POST':
         form = ProfileEditForm(request.POST, request.FILES, instance=profile)
@@ -1126,6 +1143,12 @@ def my_profile(request):
         'form': form,
         'profile': profile,
         'my_listings': my_listings,
+        'active_listings': active_listings,
+        'closed_listings': closed_listings,
+        'reviews': reviews,
+        'rating_total': rating_total,
+        'rating_avg': rating_avg,
+        'rating_pct': rating_pct,
     })
 
 # ─── BECOME A SELLER (customer → seller upgrade) ─────────────────────────────
