@@ -94,6 +94,24 @@ class ProfileEditForm(forms.ModelForm):
 
 
 class VehicleListingForm(forms.ModelForm):
+    # Optional proof of OR/CR. Not a model field — the view uploads it to the
+    # private Supabase bucket and stores only the resulting path.
+    or_cr_document = forms.FileField(
+        required=False,
+        widget=forms.ClearableFileInput(attrs={'accept': '.jpg,.jpeg,.png,.webp,.pdf,image/*,application/pdf'}),
+    )
+
+    def clean_or_cr_document(self):
+        doc = self.cleaned_data.get('or_cr_document')
+        if not doc:
+            return doc
+        ext = doc.name.rsplit('.', 1)[-1].lower() if '.' in doc.name else ''
+        if ext not in ('jpg', 'jpeg', 'png', 'webp', 'pdf'):
+            raise ValidationError('Please upload a JPG, PNG, WEBP or PDF file.')
+        if doc.size > 5 * 1024 * 1024:
+            raise ValidationError('The file is too large. Maximum size is 5 MB.')
+        return doc
+
     class Meta:
         model = VehicleListing
         fields = [

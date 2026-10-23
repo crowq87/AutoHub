@@ -42,6 +42,7 @@
 }
 
 .pf-pill.customer { border-color: var(--text-faint); color: var(--text-muted); }
+.pf-pill.admin { border-color: #8b5cf6; color: #8b5cf6; }
 
 .pf-avatar-wrap {
     position: relative;
@@ -388,7 +389,9 @@
 
       <div class="pf-card pf-hero">
 
-        {% if profile.role == 'seller' %}
+        {% if profile.user.is_superuser or profile.user.is_staff %}
+          <span class="pf-pill admin"><i class="bi bi-shield-check me-1"></i>Admin</span>
+        {% elif profile.role == 'seller' %}
           <span class="pf-pill"><i class="bi bi-shop me-1"></i>Seller</span>
         {% else %}
           <span class="pf-pill customer"><i class="bi bi-person-fill me-1"></i>Customer</span>
@@ -405,7 +408,7 @@
           </button>
         </div>
 
-        <h4 class="pf-name">{{ profile.get_full_name|default:user.username }}</h4>
+        <h4 class="pf-name">{{ profile.get_full_name|default:user.username }}{% if profile.is_verified_account %} <i class="bi bi-patch-check-fill text-success" title="Verified" style="font-size:.85em;"></i>{% endif %}</h4>
         <div class="pf-handle">@{{ user.username }}</div>
 
         {% if rating_avg %}
@@ -466,12 +469,12 @@
       </div>
 
       <!-- Identity verification (sellers) / Become a seller (customers) -->
-      {% if profile.role == 'seller' %}
+      {% if profile.role == 'seller' or profile.is_id_exempt %}
         <div class="pf-card">
           <div class="d-flex align-items-center justify-content-between mb-2">
             <span class="pf-card-title mb-0"><i class="bi bi-patch-check me-1"></i>Identity Verification</span>
-            {% if profile.user.is_superuser %}
-              <span class="badge bg-danger">Exempt</span>
+            {% if profile.is_id_exempt %}
+              <span class="badge bg-success"><i class="bi bi-patch-check-fill me-1"></i>Verified</span>
             {% elif profile.id_verification_status == 'verified' %}
               <span class="badge bg-success">Verified</span>
             {% elif profile.id_verification_status == 'pending' %}
@@ -483,8 +486,8 @@
             {% endif %}
           </div>
           <p class="small text-muted mb-2">
-            {% if profile.user.is_superuser %}
-              Superuser accounts are exempt from ID verification.
+            {% if profile.is_id_exempt %}
+              Admin accounts are verified automatically. No ID is needed.
             {% elif profile.id_verification_status == 'verified' %}
               You can post vehicle listings. Your ID is stored privately and securely.
             {% elif profile.id_verification_status == 'pending' %}
@@ -495,13 +498,14 @@
               Upload a government ID to unlock posting vehicle listings.
             {% endif %}
           </p>
-          {% if not profile.user.is_superuser and not profile.is_id_verified %}
+          {% if not profile.is_id_exempt and not profile.is_id_verified %}
             <a href="{% url 'verify_identity' %}" class="pf-btn-outline mt-2">
               {% if profile.id_verification_status == 'pending' %}Replace ID{% elif profile.id_verification_status == 'rejected' %}Upload New ID{% else %}Verify Identity{% endif %}
             </a>
           {% endif %}
         </div>
-      {% else %}
+      {% endif %}
+      {% if profile.role != 'seller' %}
         <div class="pf-card">
           <div class="pf-card-title"><i class="bi bi-shop me-1"></i>Want to sell or rent out vehicles?</div>
           <p class="small text-muted mb-0">Upgrade to a seller account and start posting your own listings.</p>

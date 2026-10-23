@@ -1,0 +1,181 @@
+{% extends 'core/base.html' %}
+{% block title %}Settings — AutoHub{% endblock %}
+
+{% block extra_css %}
+<style>
+.st-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    box-shadow: var(--card-shadow);
+    padding: 1.5rem;
+}
+
+.st-nav {
+    list-style: none;
+    padding: .5rem;
+    margin: 0;
+}
+
+.st-nav a {
+    display: flex;
+    align-items: center;
+    gap: .6rem;
+    padding: .6rem .8rem;
+    border-radius: 8px;
+    color: var(--text-primary);
+    font-weight: 600;
+    font-size: .9rem;
+    text-decoration: none;
+}
+
+.st-nav a.active { background: rgba(249, 115, 22, .12); color: var(--orange); }
+.st-nav a:hover:not(.active) { background: rgba(127, 127, 127, .1); }
+
+.st-title { font-weight: 800; font-size: 1.25rem; margin-bottom: .25rem; }
+.st-sub { color: var(--text-muted); font-size: .88rem; margin-bottom: 1.25rem; }
+
+.st-section-title {
+    font-weight: 700;
+    font-size: .95rem;
+    color: var(--text-primary);
+    margin-bottom: .25rem;
+}
+
+.st-row {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 1rem;
+    flex-wrap: wrap;
+}
+
+.st-divider { border: 0; border-top: 1px solid var(--border); margin: 1.25rem 0; }
+
+.st-danger {
+    border: 1px solid rgba(239, 68, 68, .35);
+    border-radius: 12px;
+    padding: 1rem 1.1rem;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+  <div class="row g-4">
+
+    <!-- Sidebar -->
+    <div class="col-lg-3">
+      <div class="st-card p-2">
+        <ul class="st-nav">
+          <li><a href="#security" class="active"><i class="bi bi-shield-lock"></i>Security</a></li>
+          <li><a href="{% url 'my_profile' %}"><i class="bi bi-arrow-left"></i>Back to profile</a></li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- Content -->
+    <div class="col-lg-9">
+      <div class="st-card" id="security">
+        <div class="st-title"><i class="bi bi-shield-lock me-2"></i>Security</div>
+        <div class="st-sub">Manage your identity verification and the ID you have on file.</div>
+
+        <div class="st-row">
+          <div>
+            <div class="st-section-title">Identity verification</div>
+            <p class="small text-muted mb-0">
+              {% if profile.is_id_exempt %}
+                Admin accounts are verified automatically. No ID is needed.
+              {% elif profile.role != 'seller' %}
+                Identity verification is only required for seller accounts.
+              {% elif profile.id_verification_status == 'verified' %}
+                Your ID is verified. You can post vehicle listings, and your ID is stored privately and securely.
+              {% elif profile.id_verification_status == 'pending' %}
+                Your ID is waiting for admin review. Posting unlocks once it's verified.
+              {% elif profile.id_verification_status == 'rejected' %}
+                Your ID was rejected{% if profile.id_rejection_reason %}: {{ profile.id_rejection_reason }}{% else %}.{% endif %}
+                Upload a new one to try again.
+              {% else %}
+                Upload a government ID to unlock posting vehicle listings.
+              {% endif %}
+            </p>
+          </div>
+
+          <div>
+            {% if profile.is_id_exempt %}
+              <span class="badge bg-success"><i class="bi bi-patch-check-fill me-1"></i>Verified</span>
+            {% elif profile.role != 'seller' %}
+              <a href="{% url 'become_seller' %}" class="btn btn-outline-warning btn-sm fw-600">
+                <i class="bi bi-shop me-1"></i>Become a seller
+              </a>
+            {% elif profile.id_verification_status == 'verified' %}
+              <span class="badge bg-success"><i class="bi bi-patch-check-fill me-1"></i>Verified</span>
+            {% elif profile.id_verification_status == 'pending' %}
+              <span class="badge bg-info text-dark">Pending Review</span>
+            {% elif profile.id_verification_status == 'rejected' %}
+              <span class="badge bg-danger">Rejected</span>
+            {% else %}
+              <span class="badge bg-warning text-dark">Required</span>
+            {% endif %}
+          </div>
+        </div>
+
+        {% if profile.role == 'seller' and not profile.is_id_exempt and not profile.is_id_verified %}
+          <a href="{% url 'verify_identity' %}" class="btn btn-warning btn-sm fw-600 mt-3">
+            <i class="bi bi-upload me-1"></i>
+            {% if profile.id_verification_status == 'pending' %}Replace ID
+            {% elif profile.id_verification_status == 'rejected' %}Upload new ID
+            {% else %}Verify identity{% endif %}
+          </a>
+        {% endif %}
+
+        {% if has_id_on_file and profile.role == 'seller' and not profile.is_id_exempt %}
+          <hr class="st-divider">
+
+          <div class="st-danger">
+            <div class="st-section-title text-danger"><i class="bi bi-trash me-1"></i>Remove my ID</div>
+            <p class="small text-muted mb-3">
+              This deletes your uploaded ID from our secure storage. You won't be able to
+              post new vehicles until you verify your identity again. Your existing listings
+              stay as they are.
+            </p>
+            <button type="button" class="btn btn-outline-danger btn-sm fw-600"
+                    data-bs-toggle="modal" data-bs-target="#removeIdModal">
+              <i class="bi bi-trash me-1"></i>Remove ID
+            </button>
+          </div>
+        {% endif %}
+      </div>
+    </div>
+
+  </div>
+</div>
+
+{% if has_id_on_file and profile.role == 'seller' and not profile.is_id_exempt %}
+<!-- Confirm remove ID -->
+<div class="modal fade" id="removeIdModal" tabindex="-1" aria-labelledby="removeIdModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <form method="post" action="{% url 'remove_id_document' %}">
+        {% csrf_token %}
+        <input type="hidden" name="next" value="{% url 'account_settings' %}">
+        <div class="modal-header">
+          <h5 class="modal-title" id="removeIdModalLabel">Remove your ID?</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <p class="mb-2">Your ID will be permanently deleted.</p>
+          <p class="mb-0 text-muted small">
+            You won't be able to post vehicles until you upload a new ID and an admin verifies it again.
+          </p>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-danger">Yes, remove my ID</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endif %}
+{% endblock %}

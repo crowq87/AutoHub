@@ -125,6 +125,7 @@
             <div class="vehicle-tags mt-2">
               <span class="vtag"><i class="bi bi-fuel-pump-fill"></i> {{ vehicle.get_fuel_type_display }}</span>
               <span class="vtag"><i class="bi bi-palette-fill"></i> {{ vehicle.color }}</span>
+              {% if vehicle.or_cr_verified %}<span class="vtag vtag-green"><i class="bi bi-patch-check-fill"></i> OR/CR verified</span>{% endif %}
               {% if vehicle.has_ac %}<span class="vtag vtag-green"><i class="bi bi-snow2"></i> AC</span>{% endif %}
               {% if vehicle.has_dashcam %}<span class="vtag vtag-blue"><i class="bi bi-camera-video-fill"></i> Dashcam</span>{% endif %}
               <span class="vtag"><i class="bi bi-gear-fill"></i> {{ vehicle.get_transmission_display }}</span>

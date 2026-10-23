@@ -41,6 +41,14 @@ from firebase_admin import auth as firebase_auth
 from .firebase_utils import firebase_verify_password, send_firebase_verification_email, firebase_is_email_verified
 from .email_utils import send_email
 from functools import wraps
+from datetime import timedelta
+from django.core.files.storage import default_storage
+from django.core.paginator import Paginator
+from django.core.validators import validate_email
+from django.db import transaction
+from django.db.models.functions import TruncDate
+from django.utils.http import url_has_allowed_host_and_scheme
+from .firebase_utils import firebase_update_email, firebase_delete_user
 # ─── EMAIL VERIFICATION GATE ──────────────────────────────────────────────────
 def email_verified_required(view_func):
     """
@@ -128,15 +136,19 @@ def login_view(request):
 
     if request.method == 'POST':
         form = AuthenticationForm(request, data=request.POST)
-        username = request.POST.get('username', '').strip()
+        # The field is still named "username" but accepts a username OR an email.
+        identifier = request.POST.get('username', '').strip()
         password = request.POST.get('password', '')
 
-        try:
-            django_user = User.objects.get(username=username)
-        except User.DoesNotExist:
-            django_user = None
+        # Exact username first (usernames may legitimately contain "@"),
+        # then fall back to matching the email address.
+        candidates = list(User.objects.filter(username=identifier)[:1])
+        if not candidates and identifier:
+            candidates = list(User.objects.filter(email__iexact=identifier))
 
-        if django_user and django_user.email:
+        for django_user in candidates:
+            if not django_user.email:
+                continue
             profile = UserProfile.objects.filter(user=django_user).first()
 
             # Normal Firebase-backed accounts are authenticated by Firebase.
@@ -147,11 +159,28 @@ def login_view(request):
             if profile and profile.firebase_uid:
                 firebase_uid = firebase_verify_password(django_user.email, password)
             else:
-                authenticated_user = authenticate(request, username=username, password=password)
-                if authenticated_user == django_user:
+                authenticated_user = authenticate(
+                    request, username=django_user.username, password=password
+                )
+                # authenticate() refuses inactive (banned) users, so check the
+                # password directly for them to show the ban notice below.
+                if authenticated_user == django_user or (
+                    profile and profile.is_banned and django_user.check_password(password)
+                ):
                     firebase_uid = 'django-fallback'
 
             if firebase_uid:
+                # Correct credentials, but the account is banned / deactivated.
+                if (profile and profile.is_banned) or not django_user.is_active:
+                    if profile and profile.is_banned:
+                        notice = "This account has been banned and can no longer be used."
+                        if (profile.ban_reason or '').strip():
+                            notice += f" Reason: {profile.ban_reason.strip()}"
+                    else:
+                        notice = "This account has been deactivated."
+                    messages.error(request, notice)
+                    return redirect('login')
+
                 django_user.backend = 'django.contrib.auth.backends.ModelBackend'
                 login(request, django_user)
                 role_label = (
@@ -165,7 +194,7 @@ def login_view(request):
                 )
                 return redirect('dashboard')
 
-        messages.error(request, "Invalid username or password.")
+        messages.error(request, "Invalid username/email or password.")
     else:
         form = AuthenticationForm()
 
@@ -938,7 +967,7 @@ def verify_identity(request):
 
     # Superusers bypass ID verification entirely.
     if profile.is_id_exempt():
-        messages.info(request, "Superuser accounts are exempt from ID verification.")
+        messages.info(request, "Admin accounts are verified automatically.")
         return redirect('post_vehicle')
 
     # Already approved — nothing more to submit. (Re-uploading would reset the
@@ -992,6 +1021,60 @@ def verify_identity(request):
     })
 
 
+# ─── ACCOUNT SETTINGS ─────────────────────────────────────────────────────────
+@login_required
+def account_settings(request):
+    """Settings page. Currently has a Security section (identity verification
+    status and removing a stored ID)."""
+    profile, _ = UserProfile.objects.get_or_create(user=request.user)
+    return render(request, 'core/settings.html', {
+        'profile': profile,
+        'has_id_on_file': bool(profile.id_document_path),
+    })
+
+
+@login_required
+@require_POST
+def remove_id_document(request):
+    """
+    Lets a seller delete their uploaded ID (Security settings). The file is
+    removed from the private Supabase bucket and the profile goes back to
+    'not_submitted', which means can_post_vehicles() is False again until
+    they upload a new ID and an admin re-approves it. Existing listings are
+    left untouched.
+    """
+    profile, _ = UserProfile.objects.get_or_create(user=request.user)
+    next_url = request.POST.get('next') or reverse('account_settings')
+
+    if profile.is_id_exempt():
+        messages.info(request, "Admin accounts don't have an ID on file.")
+        return redirect(next_url)
+
+    if not profile.id_document_path and profile.id_verification_status == 'not_submitted':
+        messages.info(request, "You don't have an ID on file.")
+        return redirect(next_url)
+
+    old_path = profile.id_document_path
+
+    profile.id_document_type = ''
+    profile.id_document_path = ''
+    profile.id_verification_status = 'not_submitted'
+    profile.id_submitted_at = None
+    profile.id_reviewed_at = None
+    profile.id_rejection_reason = ''
+    profile.save()
+
+    # Best-effort — never raises; the DB record is already cleared.
+    delete_id_document(old_path)
+
+    messages.success(
+        request,
+        "Your ID has been removed. You won't be able to post vehicles "
+        "until you verify your identity again."
+    )
+    return redirect(next_url)
+
+
 # ─── POST / EDIT VEHICLE ──────────────────────────────────────────────────────
 @login_required
 @email_verified_required
@@ -1017,13 +1100,27 @@ def post_vehicle(request):
         return redirect('verify_identity')
 
     if request.method == 'POST':
-        form = VehicleListingForm(request.POST)
+        form = VehicleListingForm(request.POST, request.FILES)
         photos = request.FILES.getlist('photos')
 
         if form.is_valid():
             listing = form.save(commit=False)
             listing.owner = request.user
             listing.save()
+
+            or_cr_doc = form.cleaned_data.get('or_cr_document')
+            if or_cr_doc:
+                path = upload_id_document(request.user.id, f'orcr_listing{listing.pk}', or_cr_doc)
+                if path:
+                    listing.or_cr_document_path = path
+                    listing.is_registered = True
+                    listing.save(update_fields=['or_cr_document_path', 'is_registered'])
+                else:
+                    messages.warning(
+                        request,
+                        "Your listing was saved, but the OR/CR file couldn't be uploaded. "
+                        "You can add it again by editing the listing."
+                    )
 
             for i, photo in enumerate(photos):
                 VehiclePhoto.objects.create(
@@ -1050,11 +1147,25 @@ def edit_vehicle(request, pk):
     listing = get_object_or_404(VehicleListing, pk=pk, owner=request.user)
 
     if request.method == 'POST':
-        form = VehicleListingForm(request.POST, instance=listing)
+        form = VehicleListingForm(request.POST, request.FILES, instance=listing)
         photos = request.FILES.getlist('photos')
 
         if form.is_valid():
-            form.save()
+            listing = form.save()
+
+            or_cr_doc = form.cleaned_data.get('or_cr_document')
+            if or_cr_doc:
+                old_path = listing.or_cr_document_path
+                path = upload_id_document(request.user.id, f'orcr_listing{listing.pk}', or_cr_doc)
+                if path:
+                    listing.or_cr_document_path = path
+                    listing.is_registered = True
+                    listing.or_cr_verified = False  # a new document needs a fresh check
+                    listing.save(update_fields=['or_cr_document_path', 'is_registered', 'or_cr_verified'])
+                    if old_path:
+                        delete_id_document(old_path)
+                else:
+                    messages.warning(request, "The OR/CR file couldn't be uploaded. Please try again.")
             for i, photo in enumerate(photos):
                 VehiclePhoto.objects.create(listing=listing, image=photo)
             messages.success(request, "Listing updated successfully!")
@@ -1166,7 +1277,7 @@ def become_seller(request):
         profile.role = 'seller'
         profile.save()
         if profile.is_id_exempt():
-            messages.success(request, "You're now a seller! Superusers are exempt from ID verification.")
+            messages.success(request, "You're now a seller! Admin accounts are verified automatically.")
             return redirect('post_vehicle')
         messages.success(
             request,
@@ -1199,19 +1310,92 @@ def is_admin(user):
     return user.is_staff or user.is_superuser
 
 
+def _trend_pct(current, previous):
+    """Percentage change between two periods (for the dashboard KPI chips)."""
+    if previous:
+        return round((current - previous) / previous * 100)
+    return 100 if current else 0
+
+
 @login_required
 @user_passes_test(is_admin)
 def admin_dashboard(request):
+    now = timezone.now()
+    today = timezone.localdate()
+    week_ago = now - timedelta(days=7)
+    two_weeks_ago = now - timedelta(days=14)
+
+    live = VehicleListing.objects.filter(is_active=True)
+
+    # ── KPI numbers ──
     total_users = User.objects.count()
-    total_listings = VehicleListing.objects.filter(is_active=True).count()
-    for_sale = VehicleListing.objects.filter(is_active=True, listing_type='sale').count()
-    for_rent = VehicleListing.objects.filter(is_active=True, listing_type='rent').count()
-    recent_users = User.objects.order_by('-date_joined')[:10]
-    recent_listings = VehicleListing.objects.filter(is_active=True).order_by('-created_at')[:10]
-    unapproved = VehicleListing.objects.filter(is_approved=False, is_active=True)
+    total_listings = live.count()
+    for_sale = live.filter(listing_type='sale').count()
+    for_rent = live.filter(listing_type='rent').count()
+    banned_count = UserProfile.objects.filter(is_banned=True).count()
+
+    new_users_week = User.objects.filter(date_joined__gte=week_ago).count()
+    new_users_prev = User.objects.filter(date_joined__gte=two_weeks_ago, date_joined__lt=week_ago).count()
+    new_listings_week = VehicleListing.objects.filter(created_at__gte=week_ago).count()
+    new_listings_prev = VehicleListing.objects.filter(created_at__gte=two_weeks_ago, created_at__lt=week_ago).count()
+
+    unapproved = live.filter(is_approved=False).select_related('owner').order_by('created_at')
     pending_ids = UserProfile.objects.filter(
         role='seller', id_verification_status='pending'
     ).exclude(user__is_superuser=True).select_related('user').order_by('id_submitted_at')
+
+    # ── Chart: last 30 days of sign-ups and new listings ──
+    days = [today - timedelta(days=i) for i in range(29, -1, -1)]
+
+    def _daily(model, field):
+        rows = (
+            model.objects.filter(**{f'{field}__date__gte': days[0]})
+            .annotate(d=TruncDate(field)).values('d').annotate(c=Count('id'))
+        )
+        return {r['d']: r['c'] for r in rows}
+
+    signups_by_day = _daily(User, 'date_joined')
+    listings_by_day = _daily(VehicleListing, 'created_at')
+
+    # ── Chart: who is on the platform ──
+    admins = User.objects.filter(Q(is_staff=True) | Q(is_superuser=True)).count()
+    sellers = UserProfile.objects.filter(role='seller').exclude(
+        Q(user__is_staff=True) | Q(user__is_superuser=True)
+    ).count()
+    customers = max(total_users - admins - sellers, 0)
+
+    # ── Chart: seller ID verification funnel ──
+    id_counts = {
+        r['id_verification_status']: r['c']
+        for r in UserProfile.objects.filter(role='seller').exclude(user__is_superuser=True)
+        .values('id_verification_status').annotate(c=Count('id'))
+    }
+
+    # ── Chart: most listed brands ──
+    top_brands = list(
+        live.values('brand').annotate(c=Count('id')).order_by('-c', 'brand')[:6]
+    )
+
+    chart_data = {
+        'activity': {
+            'labels': [d.strftime('%b %d') for d in days],
+            'signups': [signups_by_day.get(d, 0) for d in days],
+            'listings': [listings_by_day.get(d, 0) for d in days],
+        },
+        'listing_type': {'labels': ['For Sale', 'For Rent'], 'values': [for_sale, for_rent]},
+        'roles': {'labels': ['Customers', 'Sellers', 'Admins'], 'values': [customers, sellers, admins]},
+        'id_status': {
+            'labels': ['Verified', 'Pending', 'Rejected', 'Not submitted'],
+            'values': [
+                id_counts.get('verified', 0), id_counts.get('pending', 0),
+                id_counts.get('rejected', 0), id_counts.get('not_submitted', 0),
+            ],
+        },
+        'brands': {
+            'labels': [b['brand'] for b in top_brands],
+            'values': [b['c'] for b in top_brands],
+        },
+    }
 
     return render(request, 'core/admin_dashboard.html', {
         'pending_ids': pending_ids,
@@ -1219,9 +1403,16 @@ def admin_dashboard(request):
         'total_listings': total_listings,
         'for_sale': for_sale,
         'for_rent': for_rent,
-        'recent_users': recent_users,
-        'recent_listings': recent_listings,
+        'banned_count': banned_count,
+        'new_users_week': new_users_week,
+        'new_users_trend': _trend_pct(new_users_week, new_users_prev),
+        'new_listings_week': new_listings_week,
+        'new_listings_trend': _trend_pct(new_listings_week, new_listings_prev),
+        'recent_users': User.objects.select_related('profile').order_by('-date_joined')[:8],
+        'recent_listings': live.select_related('owner').order_by('-created_at')[:8],
         'unapproved': unapproved,
+        'review_total': len(unapproved) + len(pending_ids),
+        'chart_data': chart_data,
     })
 
 
@@ -1272,6 +1463,55 @@ def admin_approve_listing(request, pk):
 
 @login_required
 @user_passes_test(is_admin)
+def admin_view_listing_orcr(request, pk):
+    """Short-lived signed link to the listing's private OR/CR document."""
+    listing = get_object_or_404(VehicleListing, pk=pk)
+    if not listing.or_cr_document_path:
+        messages.error(request, "This listing has no OR/CR document.")
+        return redirect('admin_listing_review', pk=pk)
+
+    url = get_signed_id_url(listing.or_cr_document_path, expires_in=300)
+    if not url:
+        messages.error(request, "Couldn't generate a secure link to view this document right now.")
+        return redirect('admin_listing_review', pk=pk)
+    return redirect(url)
+
+
+@login_required
+@user_passes_test(is_admin)
+@require_POST
+def admin_verify_listing_orcr(request, pk):
+    """Mark a listing's OR/CR as verified (or revoke the verification)."""
+    listing = get_object_or_404(VehicleListing, pk=pk)
+    action = request.POST.get('action')
+
+    if action == 'verify':
+        if not listing.or_cr_document_path:
+            messages.error(request, "Upload an OR/CR document before it can be verified.")
+            return redirect('admin_listing_review', pk=pk)
+        listing.or_cr_verified = True
+        listing.save(update_fields=['or_cr_verified'])
+        Notification.objects.create(
+            recipient=listing.owner,
+            notif_type='update',
+            title='OR/CR verified',
+            message=f'The OR/CR for your {listing.year} {listing.brand} {listing.model} was verified. '
+                    f'Buyers will now see an "OR/CR verified" badge.',
+            related_listing=listing,
+        )
+        messages.success(request, "OR/CR marked as verified.")
+    elif action == 'revoke':
+        listing.or_cr_verified = False
+        listing.save(update_fields=['or_cr_verified'])
+        messages.success(request, "OR/CR verification removed.")
+    else:
+        messages.error(request, "Unknown action.")
+
+    return redirect('admin_listing_review', pk=pk)
+
+
+@login_required
+@user_passes_test(is_admin)
 @require_POST
 def admin_remove_listing(request, pk):
     listing = get_object_or_404(VehicleListing, pk=pk)
@@ -1295,11 +1535,88 @@ def admin_remove_listing(request, pk):
     return redirect(next_url)
 
 
+def _can_manage_user(actor, target):
+    """
+    Who an admin may ban / edit / delete from the panel:
+      - never themselves (so nobody locks themselves out),
+      - never a superuser,
+      - staff accounts only by a superuser.
+    """
+    if actor.pk == target.pk:
+        return False
+    if target.is_superuser:
+        return False
+    if target.is_staff and not actor.is_superuser:
+        return False
+    return True
+
+
+def _safe_next(request, default='admin_users'):
+    """Redirect target taken from a POSTed 'next', limited to this site."""
+    nxt = request.POST.get('next', '')
+    if nxt and url_has_allowed_host_and_scheme(nxt, allowed_hosts={request.get_host()}):
+        return nxt
+    return reverse(default)
+
+
 @login_required
 @user_passes_test(is_admin)
 def admin_users(request):
-    users = User.objects.all().order_by('-date_joined')
-    return render(request, 'core/admin_users.html', {'users': users})
+    # Make sure every account has a profile so the table never trips over one.
+    for u in User.objects.filter(profile__isnull=True):
+        UserProfile.objects.get_or_create(user=u)
+
+    users = (
+        User.objects.select_related('profile')
+        .annotate(listing_count=Count('listings', distinct=True))
+        .order_by('-date_joined')
+    )
+
+    q = request.GET.get('q', '').strip()
+    role = request.GET.get('role', '').strip()
+    status = request.GET.get('status', '').strip()
+
+    if q:
+        users = users.filter(
+            Q(username__icontains=q) | Q(email__icontains=q)
+            | Q(first_name__icontains=q) | Q(last_name__icontains=q)
+            | Q(profile__first_name__icontains=q) | Q(profile__last_name__icontains=q)
+            | Q(profile__phone_number__icontains=q)
+        )
+    if role in ('customer', 'seller'):
+        users = users.filter(profile__role=role)
+    elif role == 'staff':
+        users = users.filter(Q(is_staff=True) | Q(is_superuser=True))
+    if status == 'banned':
+        users = users.filter(profile__is_banned=True)
+    elif status == 'active':
+        users = users.filter(profile__is_banned=False)
+    elif status in ('pending', 'verified', 'rejected'):
+        users = users.filter(profile__id_verification_status=status)
+
+    page_obj = Paginator(users, 15).get_page(request.GET.get('page'))
+    for u in page_obj.object_list:
+        u.can_manage = _can_manage_user(request.user, u)
+
+    params = request.GET.copy()
+    params.pop('page', None)
+
+    return render(request, 'core/admin_users.html', {
+        'page_obj': page_obj,
+        'q': q,
+        'role': role,
+        'status': status,
+        'querystring': params.urlencode(),
+        'stats': {
+            'total': User.objects.count(),
+            'banned': UserProfile.objects.filter(is_banned=True).count(),
+            'sellers': UserProfile.objects.filter(role='seller').count(),
+            'pending_ids': UserProfile.objects.filter(
+                role='seller', id_verification_status='pending'
+            ).exclude(user__is_superuser=True).count(),
+        },
+        'role_choices': UserProfile.ROLE_CHOICES,
+    })
 
 
 # ─── ADMIN: VIEW A SELLER'S SUBMITTED ID (secure, time-limited link) ─────────
@@ -1378,3 +1695,189 @@ def admin_reject_seller_id(request, user_id):
     )
     messages.success(request, f"@{target_user.username}'s ID was rejected.")
     return redirect('admin_dashboard')
+
+
+# ─── ADMIN: EDIT / BAN / UNBAN / DELETE AN ACCOUNT ───────────────────────────
+@login_required
+@user_passes_test(is_admin)
+@require_POST
+def admin_edit_user(request, user_id):
+    target = get_object_or_404(User, pk=user_id)
+    next_url = _safe_next(request)
+
+    if not _can_manage_user(request.user, target):
+        messages.error(request, "You can't edit this account.")
+        return redirect(next_url)
+
+    profile, _ = UserProfile.objects.get_or_create(user=target)
+
+    username = request.POST.get('username', '').strip()
+    first_name = request.POST.get('first_name', '').strip()[:100]
+    last_name = request.POST.get('last_name', '').strip()[:100]
+    email = request.POST.get('email', '').strip()
+    phone = request.POST.get('phone_number', '').strip()[:20]
+    role = request.POST.get('role', profile.role)
+
+    # ── validate ──
+    error = None
+    try:
+        if not username:
+            raise ValidationError("Username is required.")
+        User.username_validator(username)
+        if len(username) > 150:
+            raise ValidationError("Username is too long.")
+        if User.objects.filter(username__iexact=username).exclude(pk=target.pk).exists():
+            raise ValidationError("That username is already taken.")
+        validate_email(email)
+        if User.objects.filter(email__iexact=email).exclude(pk=target.pk).exists():
+            raise ValidationError("That email is already used by another account.")
+        if role not in dict(UserProfile.ROLE_CHOICES):
+            raise ValidationError("Invalid role.")
+    except ValidationError as e:
+        error = ' '.join(e.messages)
+
+    if error:
+        messages.error(request, f"Couldn't save @{target.username}: {error}")
+        return redirect(next_url)
+
+    # Login is checked against Firebase using this email, so keep it in sync.
+    email_changed = email.lower() != (target.email or '').lower()
+    if email_changed:
+        ok, fb_error = firebase_update_email(profile.firebase_uid, email)
+        if not ok:
+            messages.error(request, f"Couldn't save @{target.username}: {fb_error}")
+            return redirect(next_url)
+
+    with transaction.atomic():
+        target.username = username
+        target.first_name = first_name
+        target.last_name = last_name
+        target.email = email
+        if request.user.is_superuser:
+            target.is_staff = request.POST.get('is_staff') == 'on'
+        target.save()
+
+        profile.first_name = first_name
+        profile.last_name = last_name
+        profile.phone_number = phone
+        profile.role = role
+        if email_changed:
+            profile.email_verified = False
+        profile.save()
+
+    messages.success(request, f"@{target.username}'s account was updated.")
+    return redirect(next_url)
+
+
+@login_required
+@user_passes_test(is_admin)
+@require_POST
+def admin_ban_user(request, user_id):
+    target = get_object_or_404(User, pk=user_id)
+    next_url = _safe_next(request)
+
+    if not _can_manage_user(request.user, target):
+        messages.error(request, "You can't ban this account.")
+        return redirect(next_url)
+
+    reason = request.POST.get('reason', '').strip()[:500]
+    if not reason:
+        messages.error(request, "Please give a reason for the ban.")
+        return redirect(next_url)
+
+    profile, _ = UserProfile.objects.get_or_create(user=target)
+    with transaction.atomic():
+        profile.is_banned = True
+        profile.banned_at = timezone.now()
+        profile.ban_reason = reason
+        profile.save(update_fields=['is_banned', 'banned_at', 'ban_reason'])
+
+        target.is_active = False
+        target.save(update_fields=['is_active'])
+
+        # Take their listings offline, remembering which ones we hid.
+        VehicleListing.objects.filter(owner=target, is_active=True).update(
+            is_active=False, hidden_by_ban=True
+        )
+
+    messages.success(request, f"@{target.username} was banned and can no longer log in.")
+    return redirect(next_url)
+
+
+@login_required
+@user_passes_test(is_admin)
+@require_POST
+def admin_unban_user(request, user_id):
+    target = get_object_or_404(User, pk=user_id)
+    next_url = _safe_next(request)
+
+    if not _can_manage_user(request.user, target):
+        messages.error(request, "You can't change this account.")
+        return redirect(next_url)
+
+    profile, _ = UserProfile.objects.get_or_create(user=target)
+    with transaction.atomic():
+        profile.is_banned = False
+        profile.banned_at = None
+        profile.ban_reason = ''
+        profile.save(update_fields=['is_banned', 'banned_at', 'ban_reason'])
+
+        target.is_active = True
+        target.save(update_fields=['is_active'])
+
+        # Bring back only the listings the ban switched off.
+        VehicleListing.objects.filter(owner=target, hidden_by_ban=True).update(
+            is_active=True, hidden_by_ban=False
+        )
+
+    Notification.objects.create(
+        recipient=target,
+        notif_type='system',
+        title='Your account was reinstated',
+        message='Your AutoHub account is active again. Your listings are back online.',
+    )
+    messages.success(request, f"@{target.username} was unbanned.")
+    return redirect(next_url)
+
+
+@login_required
+@user_passes_test(is_admin)
+@require_POST
+def admin_delete_user(request, user_id):
+    target = get_object_or_404(User, pk=user_id)
+    next_url = _safe_next(request)
+
+    if not _can_manage_user(request.user, target):
+        messages.error(request, "You can't delete this account.")
+        return redirect(next_url)
+
+    if request.POST.get('confirm_username', '').strip() != target.username:
+        messages.error(request, "Deletion cancelled — the username you typed didn't match.")
+        return redirect(next_url)
+
+    username = target.username
+    profile = UserProfile.objects.filter(user=target).first()
+    firebase_uid = profile.firebase_uid if profile else None
+    id_path = profile.id_document_path if profile else ''
+
+    # Remember uploaded files so they can be cleaned up once the rows are gone.
+    media_names = [
+        p.image.name for p in VehiclePhoto.objects.filter(listing__owner=target) if p.image
+    ]
+    if profile and profile.profile_picture:
+        media_names.append(profile.profile_picture.name)
+
+    with transaction.atomic():
+        target.delete()  # cascades to profile, listings, chats, ratings, notifications
+
+    # Best-effort clean-up of everything stored outside the database.
+    for name in media_names:
+        try:
+            default_storage.delete(name)
+        except Exception as e:
+            print(f"[Media] couldn't delete {name}: {e}")
+    delete_id_document(id_path)
+    firebase_delete_user(firebase_uid)
+
+    messages.success(request, f"@{username} and all of their data were deleted.")
+    return redirect(next_url)

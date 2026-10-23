@@ -75,3 +75,31 @@ def firebase_is_email_verified(firebase_uid):
     except Exception as e:
         print(f"[Firebase] email_verified lookup failed for uid {firebase_uid}: {e}")
         return None
+
+
+def firebase_update_email(firebase_uid, new_email):
+    """
+    Changes the email on a Firebase Auth account (login is verified against
+    Firebase using the Django user's email, so the two must stay in sync).
+    The new address is marked unverified. Returns (ok, error_message).
+    """
+    if not firebase_uid:
+        return True, ""
+    try:
+        firebase_auth.update_user(firebase_uid, email=new_email, email_verified=False)
+        return True, ""
+    except firebase_auth.EmailAlreadyExistsError:
+        return False, "That email is already used by another account."
+    except Exception as e:
+        print(f"[Firebase] email update failed for uid {firebase_uid}: {e}")
+        return False, "Couldn't update the email with the login provider. Please try again."
+
+
+def firebase_delete_user(firebase_uid):
+    """Best-effort delete of a Firebase Auth account. Never raises."""
+    if not firebase_uid:
+        return
+    try:
+        firebase_auth.delete_user(firebase_uid)
+    except Exception as e:
+        print(f"[Firebase] delete failed for uid {firebase_uid}: {e}")

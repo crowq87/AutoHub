@@ -1,0 +1,18 @@
+{# Admin section header + tabs. Usage: {% include 'core/_admin_nav.html' with active='overview' %} #}
+<div class="ad-header">
+  <div>
+    <h1 class="ad-title">{% if active == 'users' %}Manage Users{% else %}Admin Dashboard{% endif %}</h1>
+    <p class="ad-sub">
+      {% if active == 'users' %}Search, edit, ban or remove accounts without leaving AutoHub.
+      {% else %}Platform overview &middot; {% now "l, F j, Y" %}{% endif %}
+    </p>
+  </div>
+  <div class="d-flex gap-2">
+    <a href="{% url 'dashboard' %}" class="btn btn-outline-secondary btn-sm fw-600"><i class="bi bi-car-front me-1"></i>View site</a>
+  </div>
+</div>
+
+<nav class="ad-tabs">
+  <a href="{% url 'admin_dashboard' %}" class="ad-tab {% if active == 'overview' %}active{% endif %}"><i class="bi bi-speedometer2"></i>Overview</a>
+  <a href="{% url 'admin_users' %}" class="ad-tab {% if active == 'users' %}active{% endif %}"><i class="bi bi-people"></i>Users</a>
+</nav>

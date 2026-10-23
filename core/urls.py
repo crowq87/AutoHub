@@ -71,6 +71,18 @@ urlpatterns = [
         name='verify_identity'
     ),
 
+    path(
+        'verify-identity/remove/',
+        views.remove_id_document,
+        name='remove_id_document'
+    ),
+
+    path(
+        'settings/',
+        views.account_settings,
+        name='account_settings'
+    ),
+
 
     # =========================================================
     # VEHICLE LISTINGS
@@ -164,6 +176,30 @@ urlpatterns = [
     ),
 
     path(
+        'admin-panel/users/<int:user_id>/edit/',
+        views.admin_edit_user,
+        name='admin_edit_user'
+    ),
+
+    path(
+        'admin-panel/users/<int:user_id>/ban/',
+        views.admin_ban_user,
+        name='admin_ban_user'
+    ),
+
+    path(
+        'admin-panel/users/<int:user_id>/unban/',
+        views.admin_unban_user,
+        name='admin_unban_user'
+    ),
+
+    path(
+        'admin-panel/users/<int:user_id>/delete/',
+        views.admin_delete_user,
+        name='admin_delete_user'
+    ),
+
+    path(
         'admin-panel/users/<int:user_id>/view-id/',
         views.admin_view_seller_id,
         name='admin_view_seller_id'
@@ -185,6 +221,18 @@ urlpatterns = [
         'admin-panel/listings/<int:pk>/review/',
         views.admin_listing_review,
         name='admin_listing_review'
+    ),
+
+    path(
+        'admin-panel/listings/<int:pk>/orcr/',
+        views.admin_view_listing_orcr,
+        name='admin_view_listing_orcr'
+    ),
+
+    path(
+        'admin-panel/listings/<int:pk>/orcr/verify/',
+        views.admin_verify_listing_orcr,
+        name='admin_verify_listing_orcr'
     ),
 
     path(

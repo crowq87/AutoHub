@@ -820,6 +820,34 @@ textarea.form-control {
                         </div>
                     </div>
 
+                    <div class="col-12">
+                        <label class="form-label fw-600">
+                            Upload OR/CR
+                            <span class="text-muted">(optional, recommended)</span>
+                        </label>
+
+                        {{ form.or_cr_document }}
+
+                        {% if form.or_cr_document.errors %}
+                            <div class="text-danger small mt-1">{{ form.or_cr_document.errors.0 }}</div>
+                        {% endif %}
+
+                        {% if editing and listing.or_cr_document_path %}
+                            <div class="small mt-2">
+                                {% if listing.or_cr_verified %}
+                                    <span class="text-success"><i class="bi bi-patch-check-fill"></i> OR/CR document verified by AutoHub.</span>
+                                {% else %}
+                                    <span class="text-warning"><i class="bi bi-hourglass-split"></i> OR/CR document uploaded — waiting for admin review. Choose a new file to replace it.</span>
+                                {% endif %}
+                            </div>
+                        {% endif %}
+
+                        <div class="form-text">
+                            JPG, PNG, WEBP or PDF, up to 5 MB. Kept private — only AutoHub admins can view it.
+                            Once verified, your listing earns an <strong>OR/CR verified</strong> badge.
+                        </div>
+                    </div>
+
                 </div>
 
             </div>

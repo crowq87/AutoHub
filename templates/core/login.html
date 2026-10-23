@@ -10,17 +10,17 @@
           <div class="auth-header text-center">
             <div class="auth-logo mb-3"><i class="bi bi-car-front-fill"></i></div>
             <h3 class="fw-800">Welcome Back!</h3>
-            <p class="text-muted">Sign in with your AutoHub username and password</p>
+            <p class="text-muted">Sign in with your username or email and password</p>
           </div>
 
           <div class="auth-body">
             <form method="post" novalidate>
               {% csrf_token %}
               <div class="mb-3">
-                <label class="form-label fw-600">Username</label>
+                <label class="form-label fw-600">Username or Email</label>
                 <div class="input-group w-100">
                   <span class="input-group-text"><i class="bi bi-person-fill"></i></span>
-                  <input type="text" name="username" class="form-control form-control-lg" placeholder="Enter your username" autofocus>
+                  <input type="text" name="username" class="form-control form-control-lg" placeholder="Enter your username or email" autocomplete="username" autofocus>
                 </div>
                 {% if form.username.errors %}
                   <div class="text-danger small mt-1">{{ form.username.errors.0 }}</div>

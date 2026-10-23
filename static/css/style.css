@@ -338,9 +338,12 @@ h2 + .badge-listing-type, .d-flex .badge-listing-type { position: static; displa
 .footer-links li { margin-bottom: 8px; }
 .footer-links a { color: #9ca3af; text-decoration: none; font-size: 0.88rem; transition: color 0.2s; }
 .footer-links a:hover { color: var(--orange); }
-.social-links a { color: #6b7280; transition: color 0.2s; }
+.social-links a { color: #9ca3af; transition: color 0.2s; }
 .social-links a:hover { color: var(--orange); }
 .footer .text-warning { color: var(--orange) !important; }
+/* The footer is always dark, so its muted text must stay light in light mode too */
+.footer .text-muted { color: #9ca3af !important; }
+
 
 /* ── AUTH ── */
 .auth-page {

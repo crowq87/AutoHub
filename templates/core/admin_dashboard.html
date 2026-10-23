@@ -1,190 +1,431 @@
 {% extends 'core/base.html' %}
-{% block title %}Admin Panel — AutoHub{% endblock %}
+{% block title %}Admin Dashboard — AutoHub{% endblock %}
+
+{% block extra_css %}{% include 'core/_admin_styles.html' %}{% endblock %}
 
 {% block content %}
-<div class="container py-4">
-  <div class="d-flex align-items-center justify-content-between mb-4">
-    <div>
-      <h3 class="fw-800 mb-0"><i class="bi bi-shield-fill-check text-primary me-2"></i>Admin Dashboard</h3>
-      <p class="text-muted mb-0">Manage users, listings, and platform activity</p>
+<div class="container py-4 ad-wrap">
+
+  {% include 'core/_admin_nav.html' with active='overview' %}
+
+  <!-- ================= KPI cards ================= -->
+  <div class="row g-3 row-cols-2 row-cols-lg-3 row-cols-xl-5 mb-4">
+
+    <div class="col">
+      <div class="ad-kpi">
+        <div class="ad-kpi-top">
+          <span class="ad-kpi-label">Total users</span>
+          <span class="ad-kpi-icon tint-blue"><i class="bi bi-people-fill"></i></span>
+        </div>
+        <div class="ad-kpi-value">{{ total_users }}</div>
+        <div class="ad-kpi-foot">
+          <span class="ad-trend {% if new_users_trend > 0 %}up{% elif new_users_trend < 0 %}down{% else %}flat{% endif %}">
+            <i class="bi {% if new_users_trend > 0 %}bi-arrow-up-right{% elif new_users_trend < 0 %}bi-arrow-down-right{% else %}bi-dash{% endif %}"></i>{{ new_users_trend }}%
+          </span>
+          +{{ new_users_week }} this week
+        </div>
+      </div>
     </div>
-    <div class="d-flex gap-2">
-      <a href="{% url 'admin_users' %}" class="btn btn-outline-primary fw-600">
-        <i class="bi bi-people me-1"></i>Manage Users
-      </a>
-      <a href="/admin/" class="btn btn-outline-secondary fw-600">
-        <i class="bi bi-gear me-1"></i>Django Admin
-      </a>
+
+    <div class="col">
+      <div class="ad-kpi">
+        <div class="ad-kpi-top">
+          <span class="ad-kpi-label">Active listings</span>
+          <span class="ad-kpi-icon tint-green"><i class="bi bi-car-front-fill"></i></span>
+        </div>
+        <div class="ad-kpi-value">{{ total_listings }}</div>
+        <div class="ad-kpi-foot">
+          <span class="ad-trend {% if new_listings_trend > 0 %}up{% elif new_listings_trend < 0 %}down{% else %}flat{% endif %}">
+            <i class="bi {% if new_listings_trend > 0 %}bi-arrow-up-right{% elif new_listings_trend < 0 %}bi-arrow-down-right{% else %}bi-dash{% endif %}"></i>{{ new_listings_trend }}%
+          </span>
+          +{{ new_listings_week }} this week
+        </div>
+      </div>
+    </div>
+
+    <div class="col">
+      <div class="ad-kpi">
+        <div class="ad-kpi-top">
+          <span class="ad-kpi-label">For sale</span>
+          <span class="ad-kpi-icon tint-orange"><i class="bi bi-tag-fill"></i></span>
+        </div>
+        <div class="ad-kpi-value">{{ for_sale }}</div>
+        <div class="ad-kpi-foot"><i class="bi bi-key"></i>{{ for_rent }} for rent</div>
+      </div>
+    </div>
+
+    <div class="col">
+      <div class="ad-kpi">
+        <div class="ad-kpi-top">
+          <span class="ad-kpi-label">Awaiting review</span>
+          <span class="ad-kpi-icon tint-purple"><i class="bi bi-hourglass-split"></i></span>
+        </div>
+        <div class="ad-kpi-value">{{ review_total }}</div>
+        <div class="ad-kpi-foot">{{ unapproved|length }} listings &middot; {{ pending_ids|length }} IDs</div>
+      </div>
+    </div>
+
+    <div class="col">
+      <div class="ad-kpi">
+        <div class="ad-kpi-top">
+          <span class="ad-kpi-label">Banned accounts</span>
+          <span class="ad-kpi-icon tint-red"><i class="bi bi-slash-circle-fill"></i></span>
+        </div>
+        <div class="ad-kpi-value">{{ banned_count }}</div>
+        <div class="ad-kpi-foot"><a href="{% url 'admin_users' %}?status=banned">View banned users</a></div>
+      </div>
     </div>
   </div>
 
-  <!-- Stats Row -->
+  <!-- ================= Charts ================= -->
+  <div class="row g-3 mb-3">
+    <div class="col-lg-8">
+      <div class="ad-card">
+        <div class="ad-card-head">
+          <div>
+            <h6 class="ad-card-title">Platform activity</h6>
+            <p class="ad-card-sub">New sign-ups and new listings &mdash; last 30 days</p>
+          </div>
+        </div>
+        <div class="ad-card-body"><div class="ad-chart"><canvas id="chActivity"></canvas></div></div>
+      </div>
+    </div>
+    <div class="col-lg-4">
+      <div class="ad-card">
+        <div class="ad-card-head">
+          <div>
+            <h6 class="ad-card-title">Listings by type</h6>
+            <p class="ad-card-sub">Active listings</p>
+          </div>
+        </div>
+        <div class="ad-card-body">
+          <div class="ad-chart"><canvas id="chType"></canvas>
+            <div class="ad-empty" id="emType"><i class="bi bi-bar-chart"></i>No listings yet</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <div class="row g-3 mb-4">
-    <div class="col-6 col-md-3">
-      <div class="stat-card stat-blue">
-        <i class="bi bi-people-fill"></i>
-        <div class="stat-num">{{ total_users }}</div>
-        <div class="stat-lbl">Total Users</div>
+    <div class="col-md-6 col-xl-4">
+      <div class="ad-card">
+        <div class="ad-card-head">
+          <div>
+            <h6 class="ad-card-title">Users by role</h6>
+            <p class="ad-card-sub">Customers, sellers and admins</p>
+          </div>
+        </div>
+        <div class="ad-card-body">
+          <div class="ad-chart sm"><canvas id="chRoles"></canvas>
+            <div class="ad-empty" id="emRoles"><i class="bi bi-people"></i>No users yet</div></div>
+        </div>
       </div>
     </div>
-    <div class="col-6 col-md-3">
-      <div class="stat-card stat-green">
-        <i class="bi bi-car-front-fill"></i>
-        <div class="stat-num">{{ total_listings }}</div>
-        <div class="stat-lbl">Active Listings</div>
+    <div class="col-md-6 col-xl-4">
+      <div class="ad-card">
+        <div class="ad-card-head">
+          <div>
+            <h6 class="ad-card-title">Seller ID verification</h6>
+            <p class="ad-card-sub">Where sellers are in the process</p>
+          </div>
+        </div>
+        <div class="ad-card-body">
+          <div class="ad-chart sm"><canvas id="chId"></canvas>
+            <div class="ad-empty" id="emId"><i class="bi bi-shield-check"></i>No sellers yet</div></div>
+        </div>
       </div>
     </div>
-    <div class="col-6 col-md-3">
-      <div class="stat-card stat-orange">
-        <i class="bi bi-tag-fill"></i>
-        <div class="stat-num">{{ for_sale }}</div>
-        <div class="stat-lbl">For Sale</div>
-      </div>
-    </div>
-    <div class="col-6 col-md-3">
-      <div class="stat-card stat-purple">
-        <i class="bi bi-key-fill"></i>
-        <div class="stat-num">{{ for_rent }}</div>
-        <div class="stat-lbl">For Rent</div>
+    <div class="col-xl-4">
+      <div class="ad-card">
+        <div class="ad-card-head">
+          <div>
+            <h6 class="ad-card-title">Most listed brands</h6>
+            <p class="ad-card-sub">Top brands by active listings</p>
+          </div>
+        </div>
+        <div class="ad-card-body">
+          <div class="ad-chart sm"><canvas id="chBrands"></canvas>
+            <div class="ad-empty" id="emBrands"><i class="bi bi-car-front"></i>No listings yet</div></div>
+        </div>
       </div>
     </div>
   </div>
 
-  <div class="row g-4">
-    <!-- Pending ID Verification -->
-    {% if pending_ids %}
+  <!-- ================= Review queues ================= -->
+  <div class="row g-3 mb-4">
+
     <div class="col-12">
-      <div class="admin-card">
-        <h6 class="fw-700 mb-3 text-primary"><i class="bi bi-patch-check-fill me-2"></i>Pending ID Verification ({{ pending_ids|length }})</h6>
-        <div class="table-responsive">
-          <table class="table table-hover align-middle">
-            <thead class="table-light">
-              <tr><th>Seller</th><th>ID Type</th><th>Submitted</th><th>Actions</th></tr>
-            </thead>
-            <tbody>
-              {% for p in pending_ids %}
-              <tr>
-                <td class="fw-600">@{{ p.user.username }}<div class="small text-muted fw-normal">{{ p.user.get_full_name|default:p.user.email }}</div></td>
-                <td class="small">{{ p.get_id_document_type_display }}</td>
-                <td class="small text-muted">{{ p.id_submitted_at|date:"M d, Y H:i" }}</td>
-                <td>
-                  <div class="d-flex flex-wrap gap-2 align-items-center">
-                    <a href="{% url 'admin_view_seller_id' p.user.id %}" target="_blank" rel="noopener" class="btn btn-sm btn-outline-primary">
-                      <i class="bi bi-eye me-1"></i>View ID
-                    </a>
-                    <form method="post" action="{% url 'admin_approve_seller_id' p.user.id %}" class="m-0">
-                      {% csrf_token %}
-                      <button type="submit" class="btn btn-sm btn-success"><i class="bi bi-check-lg me-1"></i>Approve</button>
-                    </form>
-                    <form method="post" action="{% url 'admin_reject_seller_id' p.user.id %}" class="m-0 d-flex gap-1">
-                      {% csrf_token %}
-                      <input type="text" name="reason" class="form-control form-control-sm" placeholder="Reason for rejection" required>
-                      <button type="submit" class="btn btn-sm btn-outline-danger"><i class="bi bi-x-lg me-1"></i>Reject</button>
-                    </form>
-                  </div>
-                </td>
-              </tr>
-              {% endfor %}
-            </tbody>
-          </table>
+      <div class="ad-card">
+        <div class="ad-card-head pb-2">
+          <div>
+            <h6 class="ad-card-title"><i class="bi bi-patch-check me-2 text-primary"></i>ID verification queue</h6>
+            <p class="ad-card-sub">Sellers waiting for their ID to be reviewed</p>
+          </div>
+          {% if pending_ids %}<span class="ad-queue-count">{{ pending_ids|length }} pending</span>{% endif %}
         </div>
+        {% if pending_ids %}
+        <div class="ad-card-body flush">
+          <div class="table-responsive">
+            <table class="table table-hover ad-table">
+              <thead><tr><th>Seller</th><th>ID type</th><th>Submitted</th><th class="text-end">Actions</th></tr></thead>
+              <tbody>
+                {% for p in pending_ids %}
+                <tr>
+                  <td>
+                    <div class="ad-user-name">{{ p.get_full_name|default:p.user.username }}</div>
+                    <div class="ad-user-meta">@{{ p.user.username }} &middot; {{ p.user.email }}</div>
+                  </td>
+                  <td>{{ p.get_id_document_type_display }}</td>
+                  <td class="text-muted">{{ p.id_submitted_at|date:"M d, Y H:i" }}</td>
+                  <td>
+                    <div class="d-flex flex-wrap gap-2 align-items-center justify-content-end">
+                      <a href="{% url 'admin_view_seller_id' p.user.id %}" target="_blank" rel="noopener" class="btn btn-sm btn-outline-primary">
+                        <i class="bi bi-eye me-1"></i>View ID
+                      </a>
+                      <form method="post" action="{% url 'admin_approve_seller_id' p.user.id %}" class="m-0">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-sm btn-success"><i class="bi bi-check-lg me-1"></i>Approve</button>
+                      </form>
+                      <form method="post" action="{% url 'admin_reject_seller_id' p.user.id %}" class="m-0 d-flex gap-1">
+                        {% csrf_token %}
+                        <input type="text" name="reason" class="form-control form-control-sm" placeholder="Reason for rejection" required>
+                        <button type="submit" class="btn btn-sm btn-outline-danger"><i class="bi bi-x-lg me-1"></i>Reject</button>
+                      </form>
+                    </div>
+                  </td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+        {% else %}
+        <div class="ad-allclear"><i class="bi bi-check-circle-fill"></i>
+          <div><div class="fw-700">All caught up</div><div class="small text-muted">No IDs are waiting for review.</div></div></div>
+        {% endif %}
       </div>
     </div>
-    {% endif %}
 
-    <!-- Pending Approval -->
-    {% if unapproved %}
     <div class="col-12">
-      <div class="admin-card">
-        <h6 class="fw-700 mb-3 text-warning"><i class="bi bi-exclamation-triangle-fill me-2"></i>Pending Approval ({{ unapproved|length }})</h6>
-        <div class="table-responsive">
-          <table class="table table-hover align-middle">
-            <thead class="table-warning">
-              <tr>
-                <th>Vehicle</th><th>Owner</th><th>Type</th><th>Price</th><th>Posted</th><th>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {% for l in unapproved %}
-              <tr>
-                <td class="fw-600">{{ l.year }} {{ l.brand }} {{ l.model }}</td>
-                <td>{{ l.owner.username }}</td>
-                <td><span class="badge-listing-type badge-{{ l.listing_type }}">{{ l.get_listing_type_display }}</span></td>
-                <td>₱{{ l.price }}</td>
-                <td class="small text-muted">{{ l.created_at|date:"M d, Y" }}</td>
-                <td>
-                  <a href="{% url 'admin_listing_review' l.pk %}" class="btn btn-sm btn-primary">
-                    <i class="bi bi-eye me-1"></i>Review
-                  </a>
-                </td>
-              </tr>
-              {% endfor %}
-            </tbody>
-          </table>
+      <div class="ad-card">
+        <div class="ad-card-head pb-2">
+          <div>
+            <h6 class="ad-card-title"><i class="bi bi-exclamation-triangle me-2 text-warning"></i>Listing approval queue</h6>
+            <p class="ad-card-sub">New listings are hidden until you approve them</p>
+          </div>
+          {% if unapproved %}<span class="ad-queue-count">{{ unapproved|length }} pending</span>{% endif %}
+        </div>
+        {% if unapproved %}
+        <div class="ad-card-body flush">
+          <div class="table-responsive">
+            <table class="table table-hover ad-table">
+              <thead><tr><th>Vehicle</th><th>Owner</th><th>Type</th><th>Price</th><th>Posted</th><th class="text-end">Actions</th></tr></thead>
+              <tbody>
+                {% for l in unapproved %}
+                <tr>
+                  <td class="fw-600">{{ l.year }} {{ l.brand }} {{ l.model }}</td>
+                  <td>@{{ l.owner.username }}</td>
+                  <td><span class="ad-badge {% if l.listing_type == 'sale' %}green{% else %}blue{% endif %}">{{ l.get_listing_type_display }}</span></td>
+                  <td>₱{{ l.price }}</td>
+                  <td class="text-muted">{{ l.created_at|date:"M d, Y" }}</td>
+                  <td class="text-end">
+                    <a href="{% url 'admin_listing_review' l.pk %}" class="btn btn-sm btn-primary"><i class="bi bi-eye me-1"></i>Review</a>
+                  </td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+        {% else %}
+        <div class="ad-allclear"><i class="bi bi-check-circle-fill"></i>
+          <div><div class="fw-700">All caught up</div><div class="small text-muted">No listings are waiting for approval.</div></div></div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= Recent activity ================= -->
+  <div class="row g-3">
+    <div class="col-xl-6">
+      <div class="ad-card">
+        <div class="ad-card-head pb-2">
+          <div><h6 class="ad-card-title"><i class="bi bi-person-plus me-2 text-primary"></i>Newest users</h6></div>
+          <a href="{% url 'admin_users' %}" class="btn btn-sm btn-outline-primary">Manage users</a>
+        </div>
+        <div class="ad-card-body flush">
+          <div class="table-responsive">
+            <table class="table table-hover ad-table">
+              <thead><tr><th>User</th><th>Role</th><th>Status</th><th>Joined</th></tr></thead>
+              <tbody>
+                {% for u in recent_users %}
+                <tr>
+                  <td>
+                    <div class="ad-user-name">{{ u.profile.get_full_name|default:u.username }}{% if u.profile.is_verified_account %} <i class="bi bi-patch-check-fill text-success" title="Verified" style="font-size:.85em;"></i>{% endif %}</div>
+                    <div class="ad-user-meta">@{{ u.username }}</div>
+                  </td>
+                  <td>
+                    {% if u.is_superuser or u.is_staff %}<span class="ad-badge purple">Admin</span>
+                    {% elif u.profile.role == 'seller' %}<span class="ad-badge blue">Seller</span>
+                    {% else %}<span class="ad-badge gray">Customer</span>{% endif %}
+                  </td>
+                  <td>
+                    {% if u.profile.is_banned %}<span class="ad-badge red">Banned</span>
+                    {% else %}<span class="ad-badge green">Active</span>{% endif %}
+                  </td>
+                  <td class="text-muted">{{ u.date_joined|date:"M d, Y" }}</td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="4" class="text-center text-muted py-4">No users yet.</td></tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
         </div>
       </div>
     </div>
-    {% endif %}
 
-    <!-- Recent Users -->
-    <div class="col-lg-6">
-      <div class="admin-card">
-        <div class="d-flex justify-content-between mb-3">
-          <h6 class="fw-700 mb-0"><i class="bi bi-person-plus me-2 text-primary"></i>Recent Users</h6>
-          <a href="{% url 'admin_users' %}" class="btn btn-sm btn-outline-primary">View All</a>
+    <div class="col-xl-6">
+      <div class="ad-card">
+        <div class="ad-card-head pb-2">
+          <div><h6 class="ad-card-title"><i class="bi bi-car-front me-2 text-success"></i>Newest listings</h6></div>
+          <a href="{% url 'dashboard' %}" class="btn btn-sm btn-outline-success">Browse all</a>
         </div>
-        <div class="table-responsive">
-          <table class="table table-hover align-middle small">
-            <thead class="table-light">
-              <tr><th>Username</th><th>Name</th><th>Joined</th></tr>
-            </thead>
-            <tbody>
-              {% for u in recent_users %}
-              <tr>
-                <td class="fw-600">@{{ u.username }}</td>
-                <td>{{ u.first_name }} {{ u.last_name }}</td>
-                <td class="text-muted">{{ u.date_joined|date:"M d, Y" }}</td>
-              </tr>
-              {% endfor %}
-            </tbody>
-          </table>
-        </div>
-      </div>
-    </div>
-
-    <!-- Recent Listings -->
-    <div class="col-lg-6">
-      <div class="admin-card">
-        <div class="d-flex justify-content-between mb-3">
-          <h6 class="fw-700 mb-0"><i class="bi bi-car-front me-2 text-success"></i>Recent Listings</h6>
-          <a href="{% url 'dashboard' %}" class="btn btn-sm btn-outline-success">View All</a>
-        </div>
-        <div class="table-responsive">
-          <table class="table table-hover align-middle small">
-            <thead class="table-light">
-              <tr><th>Vehicle</th><th>Owner</th><th>Type</th><th>Actions</th></tr>
-            </thead>
-            <tbody>
-              {% for l in recent_listings %}
-              <tr>
-                <td class="fw-600">{{ l.brand }} {{ l.model }}</td>
-                <td>{{ l.owner.username }}</td>
-                <td><span class="badge-listing-type badge-{{ l.listing_type }}">{{ l.get_listing_type_display }}</span></td>
-                <td>
-                  <a href="{% url 'vehicle_detail' l.pk %}" class="btn btn-xs btn-outline-primary me-1">View</a>
-                  <form method="post" action="{% url 'admin_remove_listing' l.pk %}" class="d-inline" onsubmit="return confirm('Remove?')">
-                    {% csrf_token %}
-                    <input type="hidden" name="next" value="{% url 'admin_dashboard' %}">
-                    <button type="submit" class="btn btn-xs btn-outline-danger">Remove</button>
-                  </form>
-                </td>
-              </tr>
-              {% endfor %}
-            </tbody>
-          </table>
+        <div class="ad-card-body flush">
+          <div class="table-responsive">
+            <table class="table table-hover ad-table">
+              <thead><tr><th>Vehicle</th><th>Owner</th><th>Type</th><th class="text-end">Actions</th></tr></thead>
+              <tbody>
+                {% for l in recent_listings %}
+                <tr>
+                  <td class="fw-600">{{ l.brand }} {{ l.model }}</td>
+                  <td>@{{ l.owner.username }}</td>
+                  <td><span class="ad-badge {% if l.listing_type == 'sale' %}green{% else %}blue{% endif %}">{{ l.get_listing_type_display }}</span></td>
+                  <td>
+                    <div class="ad-actions">
+                      <a href="{% url 'vehicle_detail' l.pk %}" class="ad-icon-btn" title="View listing"><i class="bi bi-eye"></i></a>
+                      <form method="post" action="{% url 'admin_remove_listing' l.pk %}" class="m-0" onsubmit="return confirm('Remove this listing?')">
+                        {% csrf_token %}
+                        <input type="hidden" name="next" value="{% url 'admin_dashboard' %}">
+                        <button type="submit" class="ad-icon-btn danger" title="Remove listing"><i class="bi bi-trash"></i></button>
+                      </form>
+                    </div>
+                  </td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="4" class="text-center text-muted py-4">No listings yet.</td></tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
         </div>
       </div>
     </div>
   </div>
 </div>
+
+{{ chart_data|json_script:"chart-data" }}
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script>
+(function () {
+  const data = JSON.parse(document.getElementById('chart-data').textContent);
+  const PALETTE = { blue:'#3b82f6', orange:'#f97316', green:'#10b981', purple:'#8b5cf6', red:'#ef4444', gray:'#94a3b8', amber:'#f59e0b' };
+  let charts = [];
+
+  const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+  const sum = a => a.reduce((x, y) => x + y, 0);
+
+  function toggleEmpty(canvasId, emptyId, hasData) {
+    document.getElementById(canvasId).style.display = hasData ? '' : 'none';
+    const em = document.getElementById(emptyId);
+    if (em) em.style.display = hasData ? 'none' : 'flex';
+  }
+
+  function build() {
+    charts.forEach(c => c.destroy());
+    charts = [];
+
+    const text = css('--text-muted') || '#6b7280';
+    const grid = css('--border') || '#e5e7eb';
+    const card = css('--bg-card') || '#ffffff';
+    Chart.defaults.color = text;
+    Chart.defaults.font.family = getComputedStyle(document.body).fontFamily;
+    Chart.defaults.font.size = 12;
+
+    const tooltip = { backgroundColor: '#111827', titleColor: '#fff', bodyColor: '#e5e7eb', padding: 10, cornerRadius: 8, displayColors: true };
+    const legendBottom = { position: 'bottom', labels: { usePointStyle: true, pointStyle: 'circle', boxWidth: 8, padding: 14 } };
+
+    // Activity (line)
+    charts.push(new Chart(document.getElementById('chActivity'), {
+      type: 'line',
+      data: {
+        labels: data.activity.labels,
+        datasets: [
+          { label: 'New users', data: data.activity.signups, borderColor: PALETTE.blue, backgroundColor: 'rgba(59,130,246,.14)', fill: true, tension: .35, pointRadius: 0, pointHoverRadius: 5, borderWidth: 2.5 },
+          { label: 'New listings', data: data.activity.listings, borderColor: PALETTE.orange, backgroundColor: 'rgba(249,115,22,.10)', fill: true, tension: .35, pointRadius: 0, pointHoverRadius: 5, borderWidth: 2.5 }
+        ]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false, interaction: { mode: 'index', intersect: false },
+        plugins: { legend: { ...legendBottom, position: 'top', align: 'end' }, tooltip },
+        scales: {
+          x: { grid: { display: false }, ticks: { maxTicksLimit: 8, maxRotation: 0 } },
+          y: { beginAtZero: true, grid: { color: grid }, border: { display: false }, ticks: { precision: 0 } }
+        }
+      }
+    }));
+
+    // Doughnuts
+    function doughnut(id, emptyId, labels, values, colors) {
+      const has = sum(values) > 0;
+      toggleEmpty(id, emptyId, has);
+      if (!has) return;
+      charts.push(new Chart(document.getElementById(id), {
+        type: 'doughnut',
+        data: { labels, datasets: [{ data: values, backgroundColor: colors, borderColor: card, borderWidth: 3, hoverOffset: 6 }] },
+        options: { responsive: true, maintainAspectRatio: false, cutout: '68%', plugins: { legend: legendBottom, tooltip } }
+      }));
+    }
+    doughnut('chType', 'emType', data.listing_type.labels, data.listing_type.values, [PALETTE.green, PALETTE.blue]);
+    doughnut('chRoles', 'emRoles', data.roles.labels, data.roles.values, [PALETTE.blue, PALETTE.orange, PALETTE.purple]);
+
+    // ID verification (bar)
+    const hasId = sum(data.id_status.values) > 0;
+    toggleEmpty('chId', 'emId', hasId);
+    if (hasId) {
+      charts.push(new Chart(document.getElementById('chId'), {
+        type: 'bar',
+        data: { labels: data.id_status.labels, datasets: [{ data: data.id_status.values, backgroundColor: [PALETTE.green, PALETTE.amber, PALETTE.red, PALETTE.gray], borderRadius: 8, maxBarThickness: 44 }] },
+        options: {
+          responsive: true, maintainAspectRatio: false,
+          plugins: { legend: { display: false }, tooltip },
+          scales: { x: { grid: { display: false } }, y: { beginAtZero: true, grid: { color: grid }, border: { display: false }, ticks: { precision: 0 } } }
+        }
+      }));
+    }
+
+    // Top brands (horizontal bar)
+    const hasBrands = data.brands.values.length > 0;
+    toggleEmpty('chBrands', 'emBrands', hasBrands);
+    if (hasBrands) {
+      charts.push(new Chart(document.getElementById('chBrands'), {
+        type: 'bar',
+        data: { labels: data.brands.labels, datasets: [{ data: data.brands.values, backgroundColor: PALETTE.blue, borderRadius: 6, maxBarThickness: 22 }] },
+        options: {
+          indexAxis: 'y', responsive: true, maintainAspectRatio: false,
+          plugins: { legend: { display: false }, tooltip },
+          scales: { x: { beginAtZero: true, grid: { color: grid }, border: { display: false }, ticks: { precision: 0 } }, y: { grid: { display: false } } }
+        }
+      }));
+    }
+  }
+
+  build();
+  // Rebuild with the right colours when the light/dark toggle is used.
+  new MutationObserver(build).observe(document.documentElement, { attributes: true, attributeFilter: ['data-bs-theme'] });
+})();
+</script>
 {% endblock %}

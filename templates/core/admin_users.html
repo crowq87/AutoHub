@@ -1,88 +1,324 @@
 {% extends 'core/base.html' %}
 {% block title %}Manage Users — AutoHub Admin{% endblock %}
 
+{% block extra_css %}{% include 'core/_admin_styles.html' %}{% endblock %}
+
 {% block content %}
-<div class="container py-4">
-  <div class="d-flex align-items-center mb-4 gap-3">
-    <a href="{% url 'admin_dashboard' %}" class="btn btn-outline-secondary"><i class="bi bi-arrow-left"></i></a>
-    <div>
-      <h3 class="fw-800 mb-0"><i class="bi bi-people-fill text-primary me-2"></i>Manage Users</h3>
-      <p class="text-muted mb-0">{{ users|length }} registered users</p>
-    </div>
+<div class="container py-4 ad-wrap">
+
+  {% include 'core/_admin_nav.html' with active='users' %}
+
+  <!-- Quick stats -->
+  <div class="row g-3 mb-3">
+    <div class="col-6 col-lg-3"><div class="ad-chipstat"><span class="ad-kpi-icon tint-blue"><i class="bi bi-people-fill"></i></span><div><b>{{ stats.total }}</b><br><span>Total users</span></div></div></div>
+    <div class="col-6 col-lg-3"><div class="ad-chipstat"><span class="ad-kpi-icon tint-orange"><i class="bi bi-shop"></i></span><div><b>{{ stats.sellers }}</b><br><span>Sellers</span></div></div></div>
+    <div class="col-6 col-lg-3"><div class="ad-chipstat"><span class="ad-kpi-icon tint-purple"><i class="bi bi-hourglass-split"></i></span><div><b>{{ stats.pending_ids }}</b><br><span>IDs to review</span></div></div></div>
+    <div class="col-6 col-lg-3"><div class="ad-chipstat"><span class="ad-kpi-icon tint-red"><i class="bi bi-slash-circle-fill"></i></span><div><b>{{ stats.banned }}</b><br><span>Banned</span></div></div></div>
   </div>
 
-  <div class="admin-card">
+  <div class="ad-card">
+
+    <!-- Filters -->
+    <form method="get" class="ad-filter">
+      <div class="ad-search">
+        <i class="bi bi-search"></i>
+        <input type="text" name="q" value="{{ q }}" class="form-control" placeholder="Search name, username, email or phone">
+      </div>
+      <select name="role" class="form-select" style="width:auto;">
+        <option value="">All roles</option>
+        <option value="customer" {% if role == 'customer' %}selected{% endif %}>Customers</option>
+        <option value="seller" {% if role == 'seller' %}selected{% endif %}>Sellers</option>
+        <option value="staff" {% if role == 'staff' %}selected{% endif %}>Admins</option>
+      </select>
+      <select name="status" class="form-select" style="width:auto;">
+        <option value="">All statuses</option>
+        <option value="active" {% if status == 'active' %}selected{% endif %}>Active</option>
+        <option value="banned" {% if status == 'banned' %}selected{% endif %}>Banned</option>
+        <option value="pending" {% if status == 'pending' %}selected{% endif %}>ID pending review</option>
+        <option value="verified" {% if status == 'verified' %}selected{% endif %}>ID verified</option>
+        <option value="rejected" {% if status == 'rejected' %}selected{% endif %}>ID rejected</option>
+      </select>
+      <button type="submit" class="btn btn-primary btn-sm fw-600 px-3"><i class="bi bi-funnel me-1"></i>Filter</button>
+      {% if q or role or status %}<a href="{% url 'admin_users' %}" class="btn btn-outline-secondary btn-sm fw-600">Reset</a>{% endif %}
+    </form>
+
+    <!-- Table -->
     <div class="table-responsive">
-      <table class="table table-hover align-middle">
-        <thead class="table-dark">
+      <table class="table table-hover ad-table">
+        <thead>
           <tr>
-            <th>#</th><th>Username</th><th>Full Name</th><th>Email</th><th>Phone</th><th>Joined</th><th>Listings</th><th>ID Verification</th><th>Status</th>
+            <th>User</th><th>Role</th><th>ID verification</th><th>Listings</th><th>Joined</th><th>Status</th><th class="text-end">Actions</th>
           </tr>
         </thead>
         <tbody>
-          {% for u in users %}
+          {% for u in page_obj %}
           <tr>
-            <td class="text-muted small">{{ forloop.counter }}</td>
             <td>
-              <div class="d-flex align-items-center gap-2">
+              <div class="ad-user">
                 {% if u.profile.profile_picture %}
-                  <img src="{{ u.profile.profile_picture.url }}" class="avatar-xs rounded-circle" alt="">
+                  <img src="{{ u.profile.profile_picture.url }}" class="ad-avatar" alt="">
                 {% else %}
-                  <div class="avatar-xs-placeholder"><i class="bi bi-person-fill"></i></div>
+                  <div class="ad-avatar-ph">{{ u.username|slice:":1"|upper }}</div>
                 {% endif %}
-                <span class="fw-600">@{{ u.username }}</span>
+                <div>
+                  <div class="ad-user-name">{{ u.profile.get_full_name|default:u.username }}{% if u.profile.is_verified_account %} <i class="bi bi-patch-check-fill text-success" title="Verified" style="font-size:.85em;"></i>{% endif %}</div>
+                  <div class="ad-user-meta">@{{ u.username }} &middot; {{ u.email|default:"no email" }}</div>
+                  {% if u.profile.phone_number %}<div class="ad-user-meta"><i class="bi bi-telephone"></i> {{ u.profile.phone_number }}</div>{% endif %}
+                </div>
               </div>
             </td>
-            <td>{{ u.first_name }} {{ u.last_name }}</td>
-            <td class="small">{{ u.email }}</td>
-            <td class="small">
-              {% if u.profile.phone_number %}{{ u.profile.phone_number }}{% else %}<span class="text-muted">—</span>{% endif %}
-            </td>
-            <td class="small text-muted">{{ u.date_joined|date:"M d, Y" }}</td>
+
             <td>
-              <span class="badge bg-primary rounded-pill">{{ u.listings.filter.count|default:"0" }}</span>
+              {% if u.profile.role == 'seller' %}<span class="ad-badge blue"><i class="bi bi-shop"></i>Seller</span>
+              {% else %}<span class="ad-badge gray"><i class="bi bi-person"></i>Customer</span>{% endif %}
             </td>
-            <td class="small">
-              {% if u.profile.role == 'seller' %}
-                {% if u.is_superuser %}
-                  <span class="badge bg-danger">Exempt</span>
-                {% elif u.profile.id_verification_status == 'verified' %}
-                  <span class="badge bg-success">Verified</span>
-                {% elif u.profile.id_verification_status == 'pending' %}
-                  <span class="badge bg-warning text-dark">Pending Review</span>
-                {% elif u.profile.id_verification_status == 'rejected' %}
-                  <span class="badge bg-danger">Rejected</span>
-                {% else %}
-                  <span class="badge bg-secondary">Not Submitted</span>
-                {% endif %}
+
+            <td>
+              {% if u.is_superuser or u.is_staff %}
+                <span class="ad-badge green"><i class="bi bi-patch-check-fill"></i>Verified</span>
+              {% elif u.profile.role == 'seller' %}
+                {% if u.profile.id_verification_status == 'verified' %}<span class="ad-badge green"><i class="bi bi-patch-check-fill"></i>Verified</span>
+                {% elif u.profile.id_verification_status == 'pending' %}<span class="ad-badge amber">Pending</span>
+                {% elif u.profile.id_verification_status == 'rejected' %}<span class="ad-badge red">Rejected</span>
+                {% else %}<span class="ad-badge gray">Not submitted</span>{% endif %}
                 {% if u.profile.id_document_path %}
-                  <a
-                    href="{% url 'admin_view_seller_id' u.id %}"
-                    class="btn btn-sm btn-outline-primary ms-1"
-                    target="_blank"
-                    rel="noopener"
-                    title="View submitted ID (secure, expires in 5 min)"
-                  >
-                    <i class="bi bi-eye"></i>
-                  </a>
+                  <a href="{% url 'admin_view_seller_id' u.id %}" target="_blank" rel="noopener" class="ad-icon-btn ms-1" style="width:26px;height:26px;" title="View submitted ID (secure link, expires in 5 min)"><i class="bi bi-eye"></i></a>
                 {% endif %}
-              {% else %}
-                <span class="text-muted">—</span>
-              {% endif %}
+              {% else %}<span class="text-muted">—</span>{% endif %}
             </td>
+
+            <td><span class="fw-700">{{ u.listing_count }}</span></td>
+            <td class="text-muted">{{ u.date_joined|date:"M d, Y" }}</td>
+
             <td>
-              {% if u.is_superuser %}<span class="badge bg-danger">Superuser</span>
-              {% elif u.is_staff %}<span class="badge bg-warning text-dark">Staff</span>
-              {% elif u.is_active %}<span class="badge bg-success">Active</span>
-              {% else %}<span class="badge bg-secondary">Inactive</span>{% endif %}
+              {% if u.profile.is_banned %}
+                <span class="ad-badge red" title="{{ u.profile.ban_reason }}"><i class="bi bi-slash-circle-fill"></i>Banned</span>
+                {% if u.profile.banned_at %}<div class="ad-user-meta mt-1">{{ u.profile.banned_at|date:"M d, Y" }}</div>{% endif %}
+              {% elif u.is_superuser %}<span class="ad-badge purple">Superuser</span>
+              {% elif u.is_staff %}<span class="ad-badge purple">Staff</span>
+              {% else %}<span class="ad-badge green">Active</span>{% endif %}
+            </td>
+
+            <td>
+              <div class="ad-actions">
+                {% if u.can_manage %}
+                  <button type="button" class="ad-icon-btn" title="Edit account"
+                          data-bs-toggle="modal" data-bs-target="#editUserModal"
+                          data-user-id="{{ u.pk }}" data-username="{{ u.username }}"
+                          data-first="{{ u.profile.first_name|default:u.first_name }}"
+                          data-last="{{ u.profile.last_name|default:u.last_name }}"
+                          data-email="{{ u.email }}" data-phone="{{ u.profile.phone_number }}"
+                          data-role="{{ u.profile.role }}" data-staff="{% if u.is_staff %}1{% endif %}">
+                    <i class="bi bi-pencil"></i>
+                  </button>
+
+                  {% if u.profile.is_banned %}
+                    <form method="post" action="{% url 'admin_unban_user' u.pk %}" class="m-0"
+                          onsubmit="return confirm('Unban @{{ u.username|escapejs }}? They will be able to log in again and their listings go back online.');">
+                      {% csrf_token %}
+                      <input type="hidden" name="next" value="{{ request.get_full_path }}">
+                      <button type="submit" class="ad-icon-btn ok" title="Unban account"><i class="bi bi-unlock"></i></button>
+                    </form>
+                  {% else %}
+                    <button type="button" class="ad-icon-btn warn" title="Ban account"
+                            data-bs-toggle="modal" data-bs-target="#banUserModal"
+                            data-user-id="{{ u.pk }}" data-username="{{ u.username }}">
+                      <i class="bi bi-slash-circle"></i>
+                    </button>
+                  {% endif %}
+
+                  <button type="button" class="ad-icon-btn danger" title="Delete account"
+                          data-bs-toggle="modal" data-bs-target="#deleteUserModal"
+                          data-user-id="{{ u.pk }}" data-username="{{ u.username }}"
+                          data-listings="{{ u.listing_count }}">
+                    <i class="bi bi-trash"></i>
+                  </button>
+                {% elif u.pk == request.user.pk %}
+                  <span class="ad-protected">You</span>
+                {% else %}
+                  <span class="ad-protected" title="Only a superuser can manage staff, and superusers can't be changed here."><i class="bi bi-lock-fill"></i>Protected</span>
+                {% endif %}
+              </div>
             </td>
           </tr>
           {% empty %}
-          <tr><td colspan="9" class="text-center text-muted py-4">No users found.</td></tr>
+          <tr><td colspan="7" class="text-center text-muted py-5"><i class="bi bi-search d-block fs-3 mb-2"></i>No users match your search.</td></tr>
           {% endfor %}
         </tbody>
       </table>
     </div>
+
+    <!-- Pagination -->
+    <div class="ad-pager">
+      <div>
+        {% if page_obj.paginator.count %}Showing {{ page_obj.start_index }}–{{ page_obj.end_index }} of {{ page_obj.paginator.count }} users{% endif %}
+      </div>
+      {% if page_obj.has_other_pages %}
+      <ul class="pagination pagination-sm">
+        <li class="page-item {% if not page_obj.has_previous %}disabled{% endif %}">
+          <a class="page-link" href="{% if page_obj.has_previous %}?{% if querystring %}{{ querystring }}&{% endif %}page={{ page_obj.previous_page_number }}{% else %}#{% endif %}">Previous</a>
+        </li>
+        <li class="page-item disabled"><span class="page-link">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span></li>
+        <li class="page-item {% if not page_obj.has_next %}disabled{% endif %}">
+          <a class="page-link" href="{% if page_obj.has_next %}?{% if querystring %}{{ querystring }}&{% endif %}page={{ page_obj.next_page_number }}{% else %}#{% endif %}">Next</a>
+        </li>
+      </ul>
+      {% endif %}
+    </div>
   </div>
 </div>
+
+<!-- ================= Edit account ================= -->
+<div class="modal fade" id="editUserModal" tabindex="-1" aria-labelledby="editUserLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <form method="post" id="editUserForm">
+        {% csrf_token %}
+        <input type="hidden" name="next" value="{{ request.get_full_path }}">
+        <div class="modal-header">
+          <h5 class="modal-title" id="editUserLabel"><i class="bi bi-pencil-square me-2"></i>Edit account</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <div class="row g-3">
+            <div class="col-sm-6"><label class="form-label small fw-600">First name</label><input type="text" name="first_name" class="form-control" maxlength="100"></div>
+            <div class="col-sm-6"><label class="form-label small fw-600">Last name</label><input type="text" name="last_name" class="form-control" maxlength="100"></div>
+            <div class="col-12"><label class="form-label small fw-600">Username</label><input type="text" name="username" class="form-control" maxlength="150" required></div>
+            <div class="col-12">
+              <label class="form-label small fw-600">Email</label>
+              <input type="email" name="email" class="form-control" required>
+              <div class="form-text">Changing the email also updates their login, and they'll need to verify the new address.</div>
+            </div>
+            <div class="col-sm-6"><label class="form-label small fw-600">Phone</label><input type="text" name="phone_number" class="form-control" maxlength="20"></div>
+            <div class="col-sm-6">
+              <label class="form-label small fw-600">Role</label>
+              <select name="role" class="form-select">
+                {% for value, label in role_choices %}<option value="{{ value }}">{{ label }}</option>{% endfor %}
+              </select>
+            </div>
+            {% if request.user.is_superuser %}
+            <div class="col-12">
+              <div class="form-check form-switch">
+                <input class="form-check-input" type="checkbox" role="switch" name="is_staff" id="editIsStaff">
+                <label class="form-check-label small fw-600" for="editIsStaff">Admin access (can use this admin panel)</label>
+              </div>
+            </div>
+            {% endif %}
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-primary fw-600">Save changes</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- ================= Ban account ================= -->
+<div class="modal fade" id="banUserModal" tabindex="-1" aria-labelledby="banUserLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <form method="post" id="banUserForm">
+        {% csrf_token %}
+        <input type="hidden" name="next" value="{{ request.get_full_path }}">
+        <div class="modal-header">
+          <h5 class="modal-title" id="banUserLabel"><i class="bi bi-slash-circle me-2 text-warning"></i>Ban <span id="banUsername"></span>?</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <ul class="small text-muted ps-3 mb-3">
+            <li>They'll be signed out and can't log in again.</li>
+            <li>All of their listings are taken offline.</li>
+            <li>You can unban them at any time to restore access and listings.</li>
+          </ul>
+          <label class="form-label small fw-600">Reason <span class="text-danger">*</span></label>
+          <textarea name="reason" class="form-control" rows="3" maxlength="500" required
+                    placeholder="Shown to the user if they try to log in"></textarea>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-warning fw-600"><i class="bi bi-slash-circle me-1"></i>Ban account</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- ================= Delete account ================= -->
+<div class="modal fade" id="deleteUserModal" tabindex="-1" aria-labelledby="deleteUserLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <form method="post" id="deleteUserForm">
+        {% csrf_token %}
+        <input type="hidden" name="next" value="{{ request.get_full_path }}">
+        <div class="modal-header">
+          <h5 class="modal-title text-danger" id="deleteUserLabel"><i class="bi bi-trash me-2"></i>Delete account</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <p class="mb-2">This permanently deletes <strong id="delUsername"></strong> and everything tied to it:
+            their profile, <span id="delListings">0</span> listing(s) and photos, chats, ratings, notifications and uploaded ID.
+            <strong>This can't be undone.</strong></p>
+          <p class="small text-muted mb-2">If you only want to stop them using AutoHub, ban them instead.</p>
+          <label class="form-label small fw-600">Type the username to confirm</label>
+          <input type="text" name="confirm_username" id="delConfirm" class="form-control" autocomplete="off">
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" id="delSubmit" class="btn btn-danger fw-600" disabled>Delete permanently</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function () {
+  const URLS = {
+    edit:   "{% url 'admin_edit_user' 0 %}",
+    ban:    "{% url 'admin_ban_user' 0 %}",
+    remove: "{% url 'admin_delete_user' 0 %}"
+  };
+  const withId = (tpl, id) => tpl.replace('/0/', '/' + id + '/');
+
+  // Edit
+  document.getElementById('editUserModal').addEventListener('show.bs.modal', e => {
+    const b = e.relatedTarget, f = document.getElementById('editUserForm');
+    f.action = withId(URLS.edit, b.dataset.userId);
+    f.elements['username'].value = b.dataset.username || '';
+    f.elements['first_name'].value = b.dataset.first || '';
+    f.elements['last_name'].value = b.dataset.last || '';
+    f.elements['email'].value = b.dataset.email || '';
+    f.elements['phone_number'].value = b.dataset.phone || '';
+    f.elements['role'].value = b.dataset.role || 'customer';
+    if (f.elements['is_staff']) f.elements['is_staff'].checked = b.dataset.staff === '1';
+  });
+
+  // Ban
+  document.getElementById('banUserModal').addEventListener('show.bs.modal', e => {
+    const b = e.relatedTarget, f = document.getElementById('banUserForm');
+    f.action = withId(URLS.ban, b.dataset.userId);
+    f.elements['reason'].value = '';
+    document.getElementById('banUsername').textContent = '@' + b.dataset.username;
+  });
+
+  // Delete (must type the username)
+  const confirmBox = document.getElementById('delConfirm');
+  const delBtn = document.getElementById('delSubmit');
+  let expected = '';
+  document.getElementById('deleteUserModal').addEventListener('show.bs.modal', e => {
+    const b = e.relatedTarget, f = document.getElementById('deleteUserForm');
+    expected = b.dataset.username || '';
+    f.action = withId(URLS.remove, b.dataset.userId);
+    document.getElementById('delUsername').textContent = '@' + expected;
+    document.getElementById('delListings').textContent = b.dataset.listings || '0';
+    confirmBox.value = '';
+    delBtn.disabled = true;
+  });
+  confirmBox.addEventListener('input', () => { delBtn.disabled = confirmBox.value.trim() !== expected; });
+})();
+</script>
 {% endblock %}

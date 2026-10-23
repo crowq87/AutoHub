@@ -60,6 +60,21 @@ class UserProfile(models.Model):
     id_reviewed_at = models.DateTimeField(null=True, blank=True)
     id_rejection_reason = models.TextField(blank=True)
 
+    # ── Account ban (set by admins from the Manage Users page) ──
+    # A banned account cannot log in and its listings are hidden until it is
+    # reinstated. The reason is shown to the user when they try to sign in.
+    is_banned = models.BooleanField(default=False)
+    banned_at = models.DateTimeField(null=True, blank=True)
+    ban_reason = models.TextField(blank=True)
+
+    def get_full_name(self):
+        """First + last name for display. Prefers the profile's own names and
+        falls back to the linked User's names. Returns '' if neither is set,
+        so templates can use |default:user.username."""
+        first = (self.first_name or self.user.first_name or '').strip()
+        last = (self.last_name or self.user.last_name or '').strip()
+        return f"{first} {last}".strip()
+
     def has_submitted_id(self):
         """True once an ID has been uploaded (awaiting review or already
         verified). Submission alone does NOT unlock posting — see
@@ -71,8 +86,13 @@ class UserProfile(models.Model):
         return self.id_verification_status == 'verified'
 
     def is_id_exempt(self):
-        """Superusers bypass ID verification entirely."""
-        return self.user.is_superuser
+        """Admins (staff and superusers) bypass ID verification entirely."""
+        return self.user.is_superuser or self.user.is_staff
+
+    def is_verified_account(self):
+        """What the green check badge means: an admin, or a seller whose ID
+        an admin has approved."""
+        return self.is_id_exempt() or self.is_id_verified()
 
     def can_post_vehicles(self):
         """Sellers may post only once an admin has verified their ID.
@@ -197,6 +217,14 @@ class VehicleListing(models.Model):
     has_insurance = models.BooleanField(default=False, verbose_name='With Insurance')
     plate_number = models.CharField(max_length=20, blank=True, help_text='Optional')
 
+    # Photo/scan of the OR/CR. Stored in the PRIVATE Supabase bucket (same one
+    # used for seller IDs) — only the storage path lives here, and only admins
+    # can open it through a short-lived signed link.
+    or_cr_document_path = models.CharField(max_length=255, blank=True)
+    # Set by an admin after checking the uploaded document. Drives the public
+    # "OR/CR verified" badge.
+    or_cr_verified = models.BooleanField(default=False)
+
     # ── Vehicle History ──
     PREVIOUS_OWNER_CHOICES = [
         ('1', '1 Owner'),
@@ -294,6 +322,9 @@ class VehicleListing(models.Model):
     is_active = models.BooleanField(default=True)
     # New listings must be reviewed by an admin before they appear publicly.
     is_approved = models.BooleanField(default=False)
+    # True when this listing was switched off automatically because its owner
+    # was banned, so it can be switched back on if the owner is reinstated.
+    hidden_by_ban = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

@@ -113,18 +113,16 @@
                 <div class="nav-avatar-placeholder"><i class="bi bi-person-fill"></i></div>
               {% endif %}
               <span style="color:var(--nav-text);font-weight:600;font-size:0.88rem;">{{ user.profile.first_name|default:user.username }}</span>
+              {% if user.profile.is_verified_account %}<i class="bi bi-patch-check-fill text-success" title="Verified" style="font-size:0.95rem;margin-left:-0.25rem;"></i>{% endif %}
             </a>
             <ul class="dropdown-menu dropdown-menu-end shadow">
               <li><a class="dropdown-item" href="{% url 'my_profile' %}"><i class="bi bi-person me-2"></i>My Profile</a></li>
-              {% if user.profile.role == 'seller' %}
+              <li><a class="dropdown-item" href="{% url 'account_settings' %}"><i class="bi bi-gear me-2"></i>Settings</a></li>
+              {% if user.profile.role == 'seller' and not user.profile.is_verified_account %}
                 <li>
                   <a class="dropdown-item d-flex align-items-center justify-content-between" href="{% url 'verify_identity' %}">
                     <span><i class="bi bi-patch-check me-2"></i>Verify Identity</span>
-                    {% if user.is_superuser %}
-                      <span class="badge bg-danger ms-2">Exempt</span>
-                    {% elif user.profile.id_verification_status == 'verified' %}
-                      <span class="badge bg-success ms-2">Verified</span>
-                    {% elif user.profile.id_verification_status == 'pending' %}
+                    {% if user.profile.id_verification_status == 'pending' %}
                       <span class="badge bg-info text-dark ms-2">Pending Review</span>
                     {% elif user.profile.id_verification_status == 'rejected' %}
                       <span class="badge bg-danger ms-2">Rejected</span>
@@ -190,11 +188,11 @@
           <li><a href="{% url 'home' %}">Home</a></li>
           <li><a href="{% url 'about' %}">About</a></li>
           {% if user.is_authenticated %}
-  <li class="nav-item"><a class="nav-link" href="{% url 'dashboard' %}"><i class="bi bi-grid me-1"></i>Browse</a></li>
+  <li><a href="{% url 'dashboard' %}"><i class="bi bi-grid me-1"></i>Browse</a></li>
   {% if user.profile.role == 'seller' %}
-  <li class="nav-item"><a class="nav-link" href="{% url 'post_vehicle' %}"><i class="bi bi-plus-circle me-1"></i>Post Vehicle</a></li>
+  <li><a href="{% url 'post_vehicle' %}"><i class="bi bi-plus-circle me-1"></i>Post Vehicle</a></li>
   {% else %}
-  <li class="nav-item"><a class="nav-link" href="{% url 'become_seller' %}"><i class="bi bi-shop me-1"></i>Become a Seller</a></li>
+  <li><a href="{% url 'become_seller' %}"><i class="bi bi-shop me-1"></i>Become a Seller</a></li>
   {% endif %}
 
 {% else %}

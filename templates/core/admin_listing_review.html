@@ -424,9 +424,41 @@
                                     OR / CR
                                 </small>
 
-                                <strong>
-                                    {{ listing.or_cr|default:"Not provided" }}
-                                </strong>
+                                {% if listing.or_cr_document_path %}
+                                    <strong class="d-block mb-2">
+                                        {% if listing.or_cr_verified %}
+                                            <span class="text-success"><i class="bi bi-patch-check-fill"></i> Verified</span>
+                                        {% else %}
+                                            <span class="text-warning"><i class="bi bi-hourglass-split"></i> Document uploaded — awaiting verification</span>
+                                        {% endif %}
+                                    </strong>
+
+                                    <a href="{% url 'admin_view_listing_orcr' listing.pk %}"
+                                       target="_blank" rel="noopener"
+                                       class="btn btn-sm btn-outline-primary mb-2">
+                                        <i class="bi bi-file-earmark-text"></i> View document
+                                    </a>
+
+                                    <form method="POST" action="{% url 'admin_verify_listing_orcr' listing.pk %}" class="d-inline">
+                                        {% csrf_token %}
+                                        {% if listing.or_cr_verified %}
+                                            <input type="hidden" name="action" value="revoke">
+                                            <button type="submit" class="btn btn-sm btn-outline-danger mb-2">Remove verification</button>
+                                        {% else %}
+                                            <input type="hidden" name="action" value="verify">
+                                            <button type="submit" class="btn btn-sm btn-success mb-2">
+                                                <i class="bi bi-check-circle-fill"></i> Verify OR/CR
+                                            </button>
+                                        {% endif %}
+                                    </form>
+                                {% else %}
+                                    <strong>
+                                        Not provided
+                                        {% if listing.is_registered %}
+                                            <span class="text-muted fw-normal small">(seller says it is complete)</span>
+                                        {% endif %}
+                                    </strong>
+                                {% endif %}
 
                             </div>
 

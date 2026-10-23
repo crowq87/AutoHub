@@ -571,7 +571,17 @@
 
                         <div class="spec-item">
 
-                            {% if listing.is_registered %}
+                            {% if listing.or_cr_verified %}
+
+                                <i
+                                    class="bi bi-patch-check-fill text-success"
+                                ></i>
+
+                                <span class="text-success">
+                                    Verified
+                                </span>
+
+                            {% elif listing.is_registered %}
 
                                 <i
                                     class="bi bi-file-earmark-check-fill text-success"
